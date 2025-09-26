@@ -31,7 +31,14 @@ export class AIService {
     }
   }
 
-  async generateImage(prompt: string, options: { size?: string; quality?: string } = {}): Promise<string> {
+  async generateImage(prompt: string, options: { 
+    width?: number; 
+    height?: number; 
+    steps?: number; 
+    cfg_scale?: number;
+    samples?: number;
+    seed?: number;
+  } = {}): Promise<string> {
     try {
       const response = await fetch(`${this.baseUrl}/image`, {
         method: 'POST',
@@ -40,13 +47,18 @@ export class AIService {
         },
         body: JSON.stringify({
           prompt,
-          size: options.size || "1024x1024",
-          quality: options.quality || "standard"
+          width: options.width || 1024,
+          height: options.height || 1024,
+          steps: options.steps || 40,
+          cfg_scale: options.cfg_scale || 5,
+          samples: options.samples || 1,
+          seed: options.seed || 0
         }),
       });
 
       if (!response.ok) {
-        throw new Error(`AI image generation failed: ${response.statusText}`);
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `AI image generation failed: ${response.statusText}`);
       }
 
       const data = await response.json();

@@ -5,6 +5,8 @@ import { fabric } from '@/lib/fabric';
 import { Download, Upload, Save, Settings, Image, Link } from 'lucide-react';
 import { cn } from '@/utils/helpers';
 import { updateTextFontFamily, AVAILABLE_FONTS, initializeFonts } from '@/utils/fontLoader';
+import AITextModal from '../AI/AITextModal';
+import AIImageModal from '../AI/AIImageModal';
 
 interface PropertyPanelProps {
   canvas: fabric.Canvas | null;
@@ -12,6 +14,8 @@ interface PropertyPanelProps {
   onExport?: (format: 'json' | 'svg' | 'png') => any;
   onAddImage?: (url: string) => void;
   selectedTool?: 'select' | 'text' | 'rectangle' | 'circle' | 'image';
+  activeAIPanel?: 'text' | 'image' | null;
+  onCloseAIPanel?: () => void;
 }
 
 export default function PropertyPanel({ 
@@ -19,7 +23,9 @@ export default function PropertyPanel({
   selectedObjects, 
   onExport,
   onAddImage,
-  selectedTool = 'select'
+  selectedTool = 'select',
+  activeAIPanel = null,
+  onCloseAIPanel
 }: PropertyPanelProps) {
   const [selectedObject, setSelectedObject] = useState<fabric.Object | null>(null);
   const [imageUrl, setImageUrl] = useState('');
@@ -345,15 +351,59 @@ export default function PropertyPanel({
   };
 
   return (
-    <div className="h-full flex flex-col">
+    <div className="h-full flex flex-col w-full">
       {/* Header */}
-      <div className="p-4 border-b border-gray-200">
+      <div className="p-4 border-b border-gray-200 flex-shrink-0">
         <h2 className="text-lg font-semibold text-gray-900">Properties</h2>
       </div>
 
-      <div className="flex-1 overflow-y-auto">
-        {/* Show different content based on selected tool */}
-        {selectedTool === 'image' ? (
+      <div className="flex-1 overflow-y-auto w-full">
+        {/* Show AI panels when active */}
+        {activeAIPanel === 'text' ? (
+          <div className="h-full w-full">
+            <div className="p-4 border-b border-gray-200 flex items-center justify-between flex-shrink-0">
+              <h2 className="text-lg font-semibold text-gray-900">AI Text Generation</h2>
+              <button
+                onClick={onCloseAIPanel}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <div className="h-full w-full overflow-hidden">
+              <AITextModal 
+                isOpen={true}
+                onClose={onCloseAIPanel || (() => {})}
+                canvas={canvas}
+                embedded={true}
+              />
+            </div>
+          </div>
+        ) : activeAIPanel === 'image' ? (
+          <div className="h-full w-full">
+            <div className="p-4 border-b border-gray-200 flex items-center justify-between flex-shrink-0">
+              <h2 className="text-lg font-semibold text-gray-900">AI Image Generation</h2>
+              <button
+                onClick={onCloseAIPanel}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <div className="h-full w-full overflow-hidden">
+              <AIImageModal 
+                isOpen={true}
+                onClose={onCloseAIPanel || (() => {})}
+                canvas={canvas}
+                embedded={true}
+              />
+            </div>
+          </div>
+        ) : selectedTool === 'image' ? (
           /* Image Upload Section */
           <div className="p-4 border-b border-gray-200">
             <h3 className="text-sm font-medium text-gray-700 mb-3">Add Image</h3>

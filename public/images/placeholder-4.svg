@@ -1,0 +1,8 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="512" height="512" fill="#FDF2F8"/>
+  <rect x="64" y="64" width="384" height="384" rx="8" fill="#FCE7F3"/>
+  <circle cx="200" cy="200" r="60" fill="#EC4899"/>
+  <circle cx="312" cy="200" r="60" fill="#EC4899"/>
+  <circle cx="256" cy="312" r="60" fill="#EC4899"/>
+  <text x="256" y="450" text-anchor="middle" fill="#BE185D" font-family="Arial, sans-serif" font-size="16">Placeholder Image 4</text>
+</svg>

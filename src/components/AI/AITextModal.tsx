@@ -10,9 +10,10 @@ interface AITextModalProps {
   isOpen: boolean;
   onClose: () => void;
   canvas: fabric.Canvas | null;
+  embedded?: boolean;
 }
 
-export default function AITextModal({ isOpen, onClose, canvas }: AITextModalProps) {
+export default function AITextModal({ isOpen, onClose, canvas, embedded = false }: AITextModalProps) {
   const [prompt, setPrompt] = useState('');
   const [selectedType, setSelectedType] = useState('headline');
   const [generatedText, setGeneratedText] = useState('');
@@ -105,6 +106,124 @@ export default function AITextModal({ isOpen, onClose, canvas }: AITextModalProp
     setSelectedType(typeId);
     setGeneratedText(''); // Clear previous generation
   };
+
+  if (embedded) {
+    return (
+      <div className="h-full flex flex-col w-full">
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto p-4 space-y-4 w-full">
+          {/* Text Type Selection */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-3">
+              Choose Text Type
+            </label>
+            <div className="grid grid-cols-1 gap-2">
+              {textTypes.map((type) => (
+                <button
+                  key={type.id}
+                  onClick={() => handleTypeSelect(type.id)}
+                  className={cn(
+                    "p-3 text-left rounded-lg border-2 transition-all",
+                    selectedType === type.id
+                      ? "border-purple-500 bg-purple-50"
+                      : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"
+                  )}
+                >
+                  <div className="flex items-center space-x-2">
+                    <span className="text-lg">{type.icon}</span>
+                    <div>
+                      <div className="font-medium text-sm text-gray-900">{type.label}</div>
+                      <div className="text-xs text-gray-500">{type.description}</div>
+                    </div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Prompt Input */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              What do you want to write about?
+            </label>
+            <textarea
+              value={prompt}
+              onChange={(e) => setPrompt(e.target.value)}
+              placeholder={`${textTypes.find(t => t.id === selectedType)?.prompt} eco-friendly water bottles`}
+              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none"
+              rows={2}
+            />
+          </div>
+
+          {/* Generate Button */}
+          <button
+            onClick={handleGenerate}
+            disabled={isGeneratingText || !prompt.trim()}
+            className="w-full flex items-center justify-center space-x-2 px-4 py-2 text-sm font-medium text-white bg-purple-600 rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            {isGeneratingText ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Sparkles className="w-4 h-4" />
+            )}
+            <span>
+              {isGeneratingText ? '🤖 AI is writing...' : 'Generate with AI'}
+            </span>
+          </button>
+
+          {/* Generated Text */}
+          {generatedText && (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <label className="text-sm font-medium text-gray-700">
+                  Generated Text
+                </label>
+                <div className="text-xs text-gray-500">
+                  {generatedText.length} characters
+                </div>
+              </div>
+              
+              <div className="p-3 bg-gray-50 rounded-lg border">
+                <p className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">
+                  {generatedText}
+                </p>
+              </div>
+              
+              <div className="flex space-x-2">
+                <button
+                  onClick={handleAddToCanvas}
+                  disabled={isAdding}
+                  className="flex-1 flex items-center justify-center space-x-2 px-3 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  {isAdding ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Plus className="w-4 h-4" />
+                  )}
+                  <span>{isAdding ? 'Adding...' : 'Add to Canvas'}</span>
+                </button>
+                
+                <button
+                  onClick={() => setGeneratedText('')}
+                  className="px-3 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                >
+                  Generate New
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Error Display */}
+          {error && (
+            <div className="p-3 text-sm text-red-600 bg-red-50 rounded-lg border border-red-200">
+              <div className="font-medium">Generation Failed</div>
+              <div className="mt-1">{error}</div>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={cn(

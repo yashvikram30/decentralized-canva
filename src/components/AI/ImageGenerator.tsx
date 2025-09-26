@@ -13,8 +13,10 @@ interface ImageGeneratorProps {
 export default function ImageGenerator({ onImageGenerated, className }: ImageGeneratorProps) {
   const [prompt, setPrompt] = useState('');
   const [generatedImage, setGeneratedImage] = useState('');
-  const [imageSize, setImageSize] = useState('1024x1024');
-  const [imageQuality, setImageQuality] = useState('standard');
+  const [width, setWidth] = useState(1024);
+  const [height, setHeight] = useState(1024);
+  const [steps, setSteps] = useState(40);
+  const [cfgScale, setCfgScale] = useState(5);
   
   const { generateImage, isGeneratingImage, error } = useAI();
 
@@ -23,11 +25,20 @@ export default function ImageGenerator({ onImageGenerated, className }: ImageGen
     
     try {
       const imageUrl = await generateImage(prompt, {
-        size: imageSize,
-        quality: imageQuality
+        width,
+        height,
+        steps,
+        cfg_scale: cfgScale
       });
-      setGeneratedImage(imageUrl);
-      onImageGenerated?.(imageUrl);
+      
+      // Check if we got a valid image URL
+      if (imageUrl && imageUrl.trim() !== '') {
+        setGeneratedImage(imageUrl);
+        onImageGenerated?.(imageUrl);
+      } else {
+        console.warn('API returned empty image URL');
+        // Don't set empty image, let error state handle it
+      }
     } catch (error) {
       console.error('Image generation failed:', error);
     }
@@ -57,17 +68,25 @@ export default function ImageGenerator({ onImageGenerated, className }: ImageGen
     { id: 'background', label: 'Background', prompt: 'Create a background image for: ' },
   ];
 
-  const sizes = [
-    { value: '256x256', label: '256×256' },
-    { value: '512x512', label: '512×512' },
-    { value: '1024x1024', label: '1024×1024' },
-    { value: '1792x1024', label: '1792×1024' },
-    { value: '1024x1792', label: '1024×1792' },
+  const sizePresets = [
+    { width: 1024, height: 1024, label: 'Square (1024×1024)' },
+    { width: 1152, height: 896, label: 'Landscape (1152×896)' },
+    { width: 896, height: 1152, label: 'Portrait (896×1152)' },
+    { width: 1216, height: 832, label: 'Wide (1216×832)' },
+    { width: 832, height: 1216, label: 'Tall (832×1216)' },
   ];
 
-  const qualities = [
-    { value: 'standard', label: 'Standard' },
-    { value: 'hd', label: 'HD' },
+  const stepOptions = [
+    { value: 20, label: 'Fast (20 steps)' },
+    { value: 40, label: 'Balanced (40 steps)' },
+    { value: 60, label: 'High Quality (60 steps)' },
+  ];
+
+  const cfgScaleOptions = [
+    { value: 3, label: 'Creative (3)' },
+    { value: 5, label: 'Balanced (5)' },
+    { value: 7, label: 'Precise (7)' },
+    { value: 10, label: 'Very Precise (10)' },
   ];
 
   return (
@@ -110,39 +129,99 @@ export default function ImageGenerator({ onImageGenerated, className }: ImageGen
       </div>
 
       {/* Image Settings */}
-      <div className="grid grid-cols-2 gap-4">
+      <div className="space-y-4">
+        {/* Size Presets */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Size
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Image Size
           </label>
-          <select
-            value={imageSize}
-            onChange={(e) => setImageSize(e.target.value)}
-            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            {sizes.map((size) => (
-              <option key={size.value} value={size.value}>
-                {size.label}
-              </option>
+          <div className="grid grid-cols-1 gap-2">
+            {sizePresets.map((preset) => (
+              <button
+                key={preset.label}
+                onClick={() => {
+                  setWidth(preset.width);
+                  setHeight(preset.height);
+                }}
+                className={`p-2 text-sm text-left rounded-lg border transition-colors ${
+                  width === preset.width && height === preset.height
+                    ? 'border-blue-500 bg-blue-50 text-blue-700'
+                    : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                }`}
+              >
+                {preset.label}
+              </button>
             ))}
-          </select>
+          </div>
         </div>
-        
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Quality
-          </label>
-          <select
-            value={imageQuality}
-            onChange={(e) => setImageQuality(e.target.value)}
-            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            {qualities.map((quality) => (
-              <option key={quality.value} value={quality.value}>
-                {quality.label}
-              </option>
-            ))}
-          </select>
+
+        {/* Custom Dimensions */}
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Width
+            </label>
+            <input
+              type="number"
+              value={width}
+              onChange={(e) => setWidth(parseInt(e.target.value) || 1024)}
+              min="512"
+              max="1536"
+              step="64"
+              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Height
+            </label>
+            <input
+              type="number"
+              value={height}
+              onChange={(e) => setHeight(parseInt(e.target.value) || 1024)}
+              min="512"
+              max="1536"
+              step="64"
+              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+        </div>
+
+        {/* Generation Settings */}
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Steps
+            </label>
+            <select
+              value={steps}
+              onChange={(e) => setSteps(parseInt(e.target.value))}
+              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              {stepOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              CFG Scale
+            </label>
+            <select
+              value={cfgScale}
+              onChange={(e) => setCfgScale(parseInt(e.target.value))}
+              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              {cfgScaleOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
       </div>
 

@@ -32,7 +32,14 @@ export function useAI() {
     }
   }, []);
 
-  const generateImage = useCallback(async (prompt: string, options?: { size?: string; quality?: string }) => {
+  const generateImage = useCallback(async (prompt: string, options?: { 
+    width?: number; 
+    height?: number; 
+    steps?: number; 
+    cfg_scale?: number;
+    samples?: number;
+    seed?: number;
+  }) => {
     try {
       setState(prev => ({ ...prev, isGeneratingImage: true, error: null }));
       const result = await aiService.generateImage(prompt, options);

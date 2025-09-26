@@ -10,9 +10,10 @@ interface AIImageModalProps {
   isOpen: boolean;
   onClose: () => void;
   canvas: fabric.Canvas | null;
+  embedded?: boolean;
 }
 
-export default function AIImageModal({ isOpen, onClose, canvas }: AIImageModalProps) {
+export default function AIImageModal({ isOpen, onClose, canvas, embedded = false }: AIImageModalProps) {
   const [prompt, setPrompt] = useState('');
   const [selectedStyle, setSelectedStyle] = useState('photographic');
   const [selectedSize, setSelectedSize] = useState('square');
@@ -54,30 +55,32 @@ export default function AIImageModal({ isOpen, onClose, canvas }: AIImageModalPr
   ];
 
   const sizeOptions = [
-    { id: 'square', label: 'Square', dimensions: '1024x1024' },
-    { id: 'portrait', label: 'Portrait', dimensions: '1024x1792' },
-    { id: 'landscape', label: 'Landscape', dimensions: '1792x1024' }
+    { id: 'square', label: 'Square', width: 1024, height: 1024 },
+    { id: 'portrait', label: 'Portrait', width: 896, height: 1152 },
+    { id: 'landscape', label: 'Landscape', width: 1152, height: 896 }
   ];
 
   const fallbackImages = [
-    'https://picsum.photos/512/512?random=1',
-    'https://picsum.photos/512/512?random=2',
-    'https://picsum.photos/512/512?random=3',
-    'https://picsum.photos/512/512?random=4',
-    'https://picsum.photos/512/512?random=5'
+    '/images/placeholder-1.svg',
+    '/images/placeholder-2.svg',
+    '/images/placeholder-3.svg',
+    '/images/placeholder-4.svg',
+    '/images/placeholder-5.svg'
   ];
 
   const handleGenerate = async () => {
     if (!prompt.trim()) return;
     
+    let progressInterval: NodeJS.Timeout | null = null;
+    
     try {
       setGenerationProgress(0);
       
       // Simulate progress for demo
-      const progressInterval = setInterval(() => {
+      progressInterval = setInterval(() => {
         setGenerationProgress(prev => {
           if (prev >= 90) {
-            clearInterval(progressInterval);
+            if (progressInterval) clearInterval(progressInterval);
             return 90;
           }
           return prev + 10;
@@ -89,23 +92,42 @@ export default function AIImageModal({ isOpen, onClose, canvas }: AIImageModalPr
       
       const fullPrompt = `${selectedStyleData?.prompt}, ${prompt}`;
       
-      const imageUrl = await generateImage(fullPrompt, {
-        size: selectedSizeData?.dimensions || '1024x1024',
-        quality: 'standard'
+      // Debug logging to verify parameters are being passed correctly
+      console.log('AI Image Generation Parameters:', {
+        style: selectedStyle,
+        stylePrompt: selectedStyleData?.prompt,
+        size: selectedSize,
+        width: selectedSizeData?.width || 1024,
+        height: selectedSizeData?.height || 1024,
+        fullPrompt: fullPrompt
       });
       
-      clearInterval(progressInterval);
+      const imageUrl = await generateImage(fullPrompt, {
+        width: selectedSizeData?.width || 1024,
+        height: selectedSizeData?.height || 1024,
+        steps: 40,
+        cfg_scale: 5
+      });
+      
+      if (progressInterval) clearInterval(progressInterval);
       setGenerationProgress(100);
       
-      // Use fallback if API fails
-      const finalImageUrl = imageUrl || fallbackImages[Math.floor(Math.random() * fallbackImages.length)];
-      setGeneratedImage(finalImageUrl);
+      // Check if we got a valid image URL
+      if (imageUrl && imageUrl.trim() !== '') {
+        setGeneratedImage(imageUrl);
+      } else {
+        // Only use fallback if API returned empty response
+        console.warn('API returned empty image URL, using fallback');
+        setGeneratedImage(fallbackImages[Math.floor(Math.random() * fallbackImages.length)]);
+      }
       
     } catch (error) {
       console.error('Image generation failed:', error);
-      // Use fallback image
-      setGeneratedImage(fallbackImages[Math.floor(Math.random() * fallbackImages.length)]);
+      if (progressInterval) clearInterval(progressInterval);
       setGenerationProgress(100);
+      
+      // Use fallback image only on actual API failure
+      setGeneratedImage(fallbackImages[Math.floor(Math.random() * fallbackImages.length)]);
     }
   };
 
@@ -159,6 +181,172 @@ export default function AIImageModal({ isOpen, onClose, canvas }: AIImageModalPr
     setGenerationProgress(0);
     handleGenerate();
   };
+
+  if (embedded) {
+    return (
+      <div className="h-full flex flex-col w-full">
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto p-4 space-y-4 w-full">
+          {/* Style Selection */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-3">
+              Choose Style
+            </label>
+            <div className="grid grid-cols-1 gap-2">
+              {stylePresets.map((style) => (
+                <button
+                  key={style.id}
+                  onClick={() => setSelectedStyle(style.id)}
+                  className={cn(
+                    "p-3 text-left rounded-lg border-2 transition-all",
+                    selectedStyle === style.id
+                      ? "border-indigo-500 bg-indigo-50"
+                      : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"
+                  )}
+                >
+                  <div className="flex items-center space-x-2">
+                    <span className="text-lg">{style.icon}</span>
+                    <div>
+                      <div className="font-medium text-sm text-gray-900">{style.label}</div>
+                      <div className="text-xs text-gray-500">{style.description}</div>
+                    </div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Size Selection */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-3">
+              Image Size
+            </label>
+            <div className="grid grid-cols-3 gap-1">
+              {sizeOptions.map((size) => (
+                <button
+                  key={size.id}
+                  onClick={() => setSelectedSize(size.id)}
+                  className={cn(
+                    "px-2 py-2 text-xs font-medium rounded-lg transition-colors",
+                    selectedSize === size.id
+                      ? "bg-indigo-600 text-white"
+                      : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                  )}
+                >
+                  {size.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Prompt Input */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Describe the image you want to create
+            </label>
+            <textarea
+              value={prompt}
+              onChange={(e) => setPrompt(e.target.value)}
+              placeholder="A futuristic city at sunset with flying cars and neon lights"
+              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+              rows={2}
+            />
+          </div>
+
+          {/* Generate Button */}
+          <button
+            onClick={handleGenerate}
+            disabled={isGeneratingImage || !prompt.trim()}
+            className="w-full flex items-center justify-center space-x-2 px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            {isGeneratingImage ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Wand2 className="w-4 h-4" />
+            )}
+            <span>
+              {isGeneratingImage ? '🎨 AI is creating...' : 'Generate Image'}
+            </span>
+          </button>
+
+          {/* Progress Bar */}
+          {isGeneratingImage && (
+            <div className="space-y-2">
+              <div className="flex justify-between text-sm text-gray-600">
+                <span>Generating image...</span>
+                <span>{generationProgress}%</span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-2">
+                <div 
+                  className="bg-indigo-600 h-2 rounded-full transition-all duration-300"
+                  style={{ width: `${generationProgress}%` }}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Generated Image */}
+          {generatedImage && (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <label className="text-sm font-medium text-gray-700">
+                  Generated Image
+                </label>
+                <div className="flex space-x-2">
+                  <button
+                    onClick={handleRegenerate}
+                    className="flex items-center space-x-1 px-2 py-1 text-xs text-gray-600 bg-gray-100 hover:bg-gray-200 rounded"
+                  >
+                    <RefreshCw className="w-3 h-3" />
+                    <span>Regenerate</span>
+                  </button>
+                </div>
+              </div>
+              
+              <div className="relative">
+                <img
+                  src={generatedImage}
+                  alt="Generated"
+                  className="w-full max-w-sm mx-auto rounded-lg shadow-lg"
+                  style={{ animation: 'fadeIn 0.5s ease-in' }}
+                />
+              </div>
+              
+              <div className="flex space-x-2">
+                <button
+                  onClick={handleAddToCanvas}
+                  disabled={isAdding}
+                  className="flex-1 flex items-center justify-center space-x-2 px-3 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  {isAdding ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Plus className="w-4 h-4" />
+                  )}
+                  <span>{isAdding ? 'Adding...' : 'Add to Canvas'}</span>
+                </button>
+                
+                <button
+                  onClick={() => setGeneratedImage('')}
+                  className="px-3 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                >
+                  Generate New
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Error Display */}
+          {error && (
+            <div className="p-3 text-sm text-red-600 bg-red-50 rounded-lg border border-red-200">
+              <div className="font-medium">Generation Failed</div>
+              <div className="mt-1">{error}</div>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   if (!isOpen) return null;
 
@@ -362,7 +550,7 @@ export default function AIImageModal({ isOpen, onClose, canvas }: AIImageModalPr
               <div className="font-medium">Generation Failed</div>
               <div className="mt-1">{error}</div>
               <div className="mt-2 text-xs">
-                Using a placeholder image for demo purposes.
+                Using a local placeholder image. Check your API configuration and try again.
               </div>
             </div>
           )}

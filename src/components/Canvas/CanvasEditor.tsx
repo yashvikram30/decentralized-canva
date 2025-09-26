@@ -32,6 +32,7 @@ export default function CanvasEditor({ className }: CanvasEditorProps) {
   const [encryptionStatus, setEncryptionStatus] = useState<'public' | 'private' | 'team' | 'template'>('public');
   const [isProcessingEncryption, setIsProcessingEncryption] = useState(false);
   const [selectedTool, setSelectedTool] = useState<'select' | 'text' | 'rectangle' | 'circle' | 'image'>('select');
+  const [activeAIPanel, setActiveAIPanel] = useState<'text' | 'image' | null>(null);
   
   const { toasts, success, error, removeToast } = useToast();
   
@@ -166,8 +167,8 @@ export default function CanvasEditor({ className }: CanvasEditorProps) {
             onSetZoom={setZoom}
             onSetDrawingMode={setDrawingMode}
             onSetTool={setSelectedTool}
-            onAIText={() => setShowAITextModal(true)}
-            onAIImage={() => setShowAIImageModal(true)}
+            onAIText={() => setActiveAIPanel('text')}
+            onAIImage={() => setActiveAIPanel('image')}
             onSave={() => setShowSaveDialog(true)}
             onLoad={() => setShowSaveDialog(true)}
             zoom={zoom}
@@ -251,6 +252,8 @@ export default function CanvasEditor({ className }: CanvasEditorProps) {
           onExport={exportCanvas}
           onAddImage={addImage}
           selectedTool={selectedTool}
+          activeAIPanel={activeAIPanel}
+          onCloseAIPanel={() => setActiveAIPanel(null)}
         />
       </div>
 

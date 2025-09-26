@@ -95,6 +95,28 @@ export function useCanvas(containerRef: React.RefObject<HTMLDivElement | null>) 
           return;
         }
 
+        // Fallback: if deselected textboxes are empty, remove them
+        const deselected = (e as any)?.deselected as fabric.Object[] | undefined;
+        if (Array.isArray(deselected) && deselected.length > 0) {
+          let removedAny = false;
+          deselected.forEach(obj => {
+            if (obj && obj.type === 'textbox') {
+              const tb = obj as fabric.Textbox;
+              const text = tb.text?.trim() || '';
+              if (text === '' && !(tb as any).__deleted) {
+                (tb as any).__deleted = true;
+                console.log('Deleting empty text box on deselect');
+                canvas.remove(tb);
+                removedAny = true;
+              }
+            }
+          });
+          if (removedAny) {
+            canvas.discardActiveObject();
+            canvas.requestRenderAll();
+          }
+        }
+
         setState(prev => ({
           ...prev,
           selectedObjects: []
@@ -117,6 +139,21 @@ export function useCanvas(containerRef: React.RefObject<HTMLDivElement | null>) 
 
       canvas.on('object:modified', (e) => {
         console.log('Object modified:', e.target?.type, 'Total objects:', canvas.getObjects().length);
+      });
+
+      // Handle text editing completion - delete empty text boxes
+      canvas.on('text:editing:exited', (e) => {
+        const textObject = e.target as fabric.Textbox;
+        if (textObject && textObject.type === 'textbox') {
+          const text = textObject.text?.trim() || '';
+          if (text === '') {
+            (textObject as any).__deleted = true;
+            console.log('Deleting empty text box on editing exit');
+            canvas.remove(textObject);
+            canvas.discardActiveObject();
+            canvas.requestRenderAll();
+          }
+        }
       });
 
       canvas.on('mouse:wheel', (opt) => {

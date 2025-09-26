@@ -2,7 +2,8 @@ import OpenAI from 'openai';
 import { config } from '@/config/environment';
 
 const openai = new OpenAI({
-  apiKey: config.openaiApiKey,
+  apiKey: config.useGroq ? config.groqApiKey : config.openaiApiKey,
+  baseURL: config.useGroq ? 'https://api.groq.com/openai/v1' : undefined,
 });
 
 export async function POST(request: Request) {
@@ -14,7 +15,7 @@ export async function POST(request: Request) {
     }
 
     const completion = await openai.chat.completions.create({
-      model: "gpt-4",
+      model: config.useGroq ? "llama3-8b-8192" : "gpt-4",
       messages: [{ role: "user", content: prompt }],
       max_tokens: maxTokens,
       temperature: temperature
