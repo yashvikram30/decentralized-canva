@@ -1,8 +1,11 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Shield, Save, Download, Share2, Settings } from 'lucide-react';
 import { cn } from '@/utils/helpers';
+import { useWallet } from '@/contexts/WalletContext';
+import WalletStatus from '@/components/Wallet/WalletStatus';
+import WalletModal from '@/components/Wallet/WalletModal';
 
 interface HeaderProps {
   isEncrypted?: boolean;
@@ -21,6 +24,7 @@ export default function Header({
   onSettings,
   className 
 }: HeaderProps) {
+  const [showWalletModal, setShowWalletModal] = useState(false);
   return (
     <header className={cn(
       "bg-white border-b border-gray-200 px-6 py-4",
@@ -48,39 +52,50 @@ export default function Header({
           </div>
         </div>
 
-        <div className="flex items-center space-x-2">
-          <button
-            onClick={onSave}
-            className="flex items-center space-x-2 px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <Save className="w-4 h-4" />
-            <span>Save</span>
-          </button>
+        <div className="flex items-center space-x-4">
+          {/* Wallet Status */}
+          <WalletStatus onConnect={() => setShowWalletModal(true)} />
+          
+          <div className="flex items-center space-x-2">
+            <button
+              onClick={onSave}
+              className="flex items-center space-x-2 px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <Save className="w-4 h-4" />
+              <span>Save</span>
+            </button>
 
-          <button
-            onClick={onDownload}
-            className="flex items-center space-x-2 px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <Download className="w-4 h-4" />
-            <span>Download</span>
-          </button>
+            <button
+              onClick={onDownload}
+              className="flex items-center space-x-2 px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <Download className="w-4 h-4" />
+              <span>Download</span>
+            </button>
 
-          <button
-            onClick={onShare}
-            className="flex items-center space-x-2 px-3 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <Share2 className="w-4 h-4" />
-            <span>Share</span>
-          </button>
+            <button
+              onClick={onShare}
+              className="flex items-center space-x-2 px-3 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <Share2 className="w-4 h-4" />
+              <span>Share</span>
+            </button>
 
-          <button
-            onClick={onSettings}
-            className="p-2 text-gray-400 hover:text-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded-md"
-          >
-            <Settings className="w-5 h-5" />
-          </button>
+            <button
+              onClick={onSettings}
+              className="p-2 text-gray-400 hover:text-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded-md"
+            >
+              <Settings className="w-5 h-5" />
+            </button>
+          </div>
         </div>
       </div>
+
+      {/* Wallet Modal */}
+      <WalletModal 
+        isOpen={showWalletModal} 
+        onClose={() => setShowWalletModal(false)} 
+      />
     </header>
   );
 }

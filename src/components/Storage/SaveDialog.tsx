@@ -2,10 +2,12 @@
 
 import React, { useState } from 'react';
 import { fabric } from '@/lib/fabric';
-import { Save, Loader2, Copy, Check, X, AlertCircle } from 'lucide-react';
+import { Save, Loader2, Copy, Check, X, AlertCircle, Wallet } from 'lucide-react';
 import { cn } from '@/utils/helpers';
 import { useWalrus } from '@/hooks/useWalrus';
+import { useWallet } from '@/contexts/WalletContext';
 import { suiSignerService } from '@/services/suiSigner';
+import WalletModal from '@/components/Wallet/WalletModal';
 
 interface SaveDialogProps {
   isOpen: boolean;
@@ -21,10 +23,11 @@ export default function SaveDialog({ isOpen, onClose, canvas, onLoad }: SaveDial
   const [loadBlobId, setLoadBlobId] = useState('');
   const [copied, setCopied] = useState(false);
   const [activeTab, setActiveTab] = useState<'save' | 'load'>('save');
-  const [signerStatus, setSignerStatus] = useState<'none' | 'generated' | 'error'>('none');
   const [error, setError] = useState<string | null>(null);
+  const [showWalletModal, setShowWalletModal] = useState(false);
 
   const { store, retrieve, isStoring, isRetrieving, error: walrusError } = useWalrus();
+  const { isConnected, address, getSuiClient } = useWallet();
 
   const generateBlobId = () => {
     const timestamp = Date.now().toString(36);
@@ -37,19 +40,21 @@ export default function SaveDialog({ isOpen, onClose, canvas, onLoad }: SaveDial
     
     setError(null);
     
+    // Check if wallet is connected
+    if (!isConnected) {
+      setShowWalletModal(true);
+      return;
+    }
+    
     try {
-      // Ensure we have a signer
+      // Create a signer from the connected wallet
+      const suiClient = getSuiClient();
+      
+      // For now, we'll use the suiSignerService but with wallet integration
+      // In a full implementation, you'd create a signer from the wallet
       if (!suiSignerService.hasSigner()) {
-        const keypair = suiSignerService.generateKeypair();
-        setSignerStatus('generated');
-        
-        // Request SUI from faucet for testnet
-        try {
-          await suiSignerService.requestFaucet();
-        } catch (faucetError) {
-          console.warn('Faucet request failed:', faucetError);
-          // Continue anyway - user might have SUI already
-        }
+        // This is a fallback - in production, you'd get the signer from the wallet
+        suiSignerService.generateKeypair();
       }
 
       const signer = suiSignerService.getSigner();
@@ -65,6 +70,7 @@ export default function SaveDialog({ isOpen, onClose, canvas, onLoad }: SaveDial
           name: designName,
           created: new Date().toISOString(),
           encrypted: isEncrypted,
+          walletAddress: address,
         }
       };
       
@@ -78,13 +84,11 @@ export default function SaveDialog({ isOpen, onClose, canvas, onLoad }: SaveDial
         setDesignName('');
         setIsEncrypted(false);
         setSavedBlobId('');
-        setSignerStatus('none');
       }, 3000);
       
     } catch (error) {
       console.error('Save failed:', error);
       setError(error instanceof Error ? error.message : 'Save failed');
-      setSignerStatus('error');
     }
   };
 
@@ -190,15 +194,27 @@ export default function SaveDialog({ isOpen, onClose, canvas, onLoad }: SaveDial
             </div>
           )}
 
-          {/* Signer Status */}
-          {signerStatus === 'generated' && (
-            <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+          {/* Wallet Status */}
+          {!isConnected && (
+            <div className="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
               <div className="flex items-center space-x-2">
-                <Check className="w-5 h-5 text-blue-600" />
-                <span className="font-medium text-blue-800">Wallet Generated</span>
+                <Wallet className="w-5 h-5 text-yellow-600" />
+                <span className="font-medium text-yellow-800">Wallet Required</span>
               </div>
-              <p className="mt-1 text-sm text-blue-700">
-                A new wallet has been created and SUI requested from faucet for testnet.
+              <p className="mt-1 text-sm text-yellow-700">
+                You need to connect your wallet to save designs to Walrus storage.
+              </p>
+            </div>
+          )}
+
+          {isConnected && (
+            <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg">
+              <div className="flex items-center space-x-2">
+                <Check className="w-5 h-5 text-green-600" />
+                <span className="font-medium text-green-800">Wallet Connected</span>
+              </div>
+              <p className="mt-1 text-sm text-green-700">
+                Connected as: {address?.slice(0, 6)}...{address?.slice(-4)}
               </p>
             </div>
           )}
@@ -261,16 +277,23 @@ export default function SaveDialog({ isOpen, onClose, canvas, onLoad }: SaveDial
 
                   <button
                     onClick={handleSave}
-                    disabled={isStoring || !designName.trim()}
+                    disabled={isStoring || !designName.trim() || !isConnected}
                     className="w-full flex items-center justify-center space-x-2 px-4 py-3 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {isStoring ? (
                       <Loader2 className="w-5 h-5 animate-spin" />
+                    ) : !isConnected ? (
+                      <Wallet className="w-5 h-5" />
                     ) : (
                       <Save className="w-5 h-5" />
                     )}
                     <span>
-                      {isStoring ? '📦 Storing on Walrus network...' : 'Save to Walrus'}
+                      {isStoring 
+                        ? '📦 Storing on Walrus network...' 
+                        : !isConnected 
+                        ? 'Connect Wallet to Save'
+                        : 'Save to Walrus'
+                      }
                     </span>
                   </button>
                 </>
@@ -312,6 +335,12 @@ export default function SaveDialog({ isOpen, onClose, canvas, onLoad }: SaveDial
           )}
         </div>
       </div>
+
+      {/* Wallet Modal */}
+      <WalletModal 
+        isOpen={showWalletModal} 
+        onClose={() => setShowWalletModal(false)} 
+      />
     </div>
   );
 }

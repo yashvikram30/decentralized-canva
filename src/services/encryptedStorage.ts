@@ -20,6 +20,7 @@ export class EncryptedStorageService {
     name: string, 
     canvasData: any, 
     owner: string, 
+    signer: any,
     permissions: Partial<AccessPolicy['permissions']> = {}
   ): Promise<StoredDesign> {
     try {
@@ -30,7 +31,7 @@ export class EncryptedStorageService {
       const encryptedData = await sealEncryption.encrypt(canvasData, policy);
       
       // Store in Walrus
-      const storageResult = await walrusClient.store(encryptedData);
+      const storageResult = await walrusClient.store(encryptedData, signer, 3);
       
       // Create design record
       const design: StoredDesign = {
@@ -83,7 +84,7 @@ export class EncryptedStorageService {
     }
   }
 
-  async updateDesign(designId: string, updates: Partial<StoredDesign>, user: string): Promise<StoredDesign | null> {
+  async updateDesign(designId: string, updates: Partial<StoredDesign>, user: string, signer: any): Promise<StoredDesign | null> {
     try {
       const design = this.designs.get(designId);
       if (!design) return null;
@@ -98,7 +99,7 @@ export class EncryptedStorageService {
       const encryptedData = await sealEncryption.encrypt(updates.canvasData || design.canvasData, design.policyId);
       
       // Update in Walrus
-      await walrusClient.store(encryptedData);
+      await walrusClient.store(encryptedData, signer, 3);
       
       // Update design record
       const updatedDesign = {
@@ -119,7 +120,7 @@ export class EncryptedStorageService {
     }
   }
 
-  async deleteDesign(designId: string, user: string): Promise<boolean> {
+  async deleteDesign(designId: string, user: string, signer: any): Promise<boolean> {
     try {
       const design = this.designs.get(designId);
       if (!design) return false;
@@ -131,7 +132,7 @@ export class EncryptedStorageService {
       }
 
       // Delete from Walrus
-      await walrusClient.delete(design.blobId);
+      await walrusClient.delete(design.blobId, signer);
       
       // Remove from local storage
       this.designs.delete(designId);

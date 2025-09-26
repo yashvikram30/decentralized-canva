@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useRef, useEffect, useState } from 'react';
+import { fabric } from '@/lib/fabric';
 import { useCanvas } from '@/hooks/useCanvas';
 import Toolbar from './Toolbar';
 import PropertyPanel from './PropertyPanel';
@@ -12,6 +13,9 @@ import SaveDialog from '../Storage/SaveDialog';
 import { ToastContainer } from '../UI/Toast';
 import { useToast } from '@/hooks/useToast';
 import { cn } from '@/utils/helpers';
+import { initializeFonts } from '@/utils/fontLoader';
+import WalrusTestPanel from '../Testing/WalrusTestPanel';
+import WalletTestPanel from '../Testing/WalletTestPanel';
 
 interface CanvasEditorProps {
   className?: string;
@@ -22,6 +26,8 @@ export default function CanvasEditor({ className }: CanvasEditorProps) {
   const [showAITextModal, setShowAITextModal] = useState(false);
   const [showAIImageModal, setShowAIImageModal] = useState(false);
   const [showSaveDialog, setShowSaveDialog] = useState(false);
+  const [showWalrusTest, setShowWalrusTest] = useState(false);
+  const [showWalletTest, setShowWalletTest] = useState(false);
   const [encryptionStatus, setEncryptionStatus] = useState<'public' | 'private' | 'team' | 'template'>('public');
   const [isProcessingEncryption, setIsProcessingEncryption] = useState(false);
   
@@ -54,6 +60,11 @@ export default function CanvasEditor({ className }: CanvasEditorProps) {
       centerCanvas();
     }
   }, [isReady, canvas, centerCanvas]);
+
+  // Initialize fonts on component mount
+  useEffect(() => {
+    initializeFonts();
+  }, []);
 
   const handleEncryptionToggle = (newStatus: 'public' | 'private' | 'team' | 'template') => {
     setIsProcessingEncryption(true);
@@ -102,10 +113,17 @@ export default function CanvasEditor({ className }: CanvasEditorProps) {
       if ((e.ctrlKey || e.metaKey) && e.key === 'a') {
         e.preventDefault();
         if (canvas) {
-          canvas.discardActiveObject();
-          canvas.setActiveObjects(canvas.getObjects());
-          canvas.renderAll();
-          success('📋 All Selected', `Selected ${canvas.getObjects().length} objects`);
+          const objects = canvas.getObjects();
+          if (objects.length > 0) {
+            canvas.discardActiveObject();
+            // Create a selection group for all objects
+            const selection = new fabric.ActiveSelection(objects, {
+              canvas: canvas,
+            });
+            canvas.setActiveObject(selection);
+            canvas.renderAll();
+            success('📋 All Selected', `Selected ${objects.length} objects`);
+          }
         }
       }
     };
@@ -180,6 +198,20 @@ export default function CanvasEditor({ className }: CanvasEditorProps) {
             >
               Reset Zoom
             </button>
+            
+            {/* Test Buttons */}
+            <button
+              onClick={() => setShowWalrusTest(true)}
+              className="px-3 py-1 text-sm bg-blue-100 text-blue-700 hover:bg-blue-200 rounded"
+            >
+              Test Walrus
+            </button>
+            <button
+              onClick={() => setShowWalletTest(true)}
+              className="px-3 py-1 text-sm bg-green-100 text-green-700 hover:bg-green-200 rounded"
+            >
+              Test Wallet
+            </button>
           </div>
         </div>
         
@@ -190,14 +222,18 @@ export default function CanvasEditor({ className }: CanvasEditorProps) {
         >
           <div className="bg-white rounded-lg shadow-lg p-4 relative">
             {!isReady && (
-              <div className="absolute inset-0 bg-white bg-opacity-75 flex items-center justify-center rounded-lg">
+              <div className="absolute inset-0 bg-white bg-opacity-75 flex items-center justify-center rounded-lg z-10">
                 <div className="text-center">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
                   <p className="text-sm text-gray-600">Initializing Canvas...</p>
                 </div>
               </div>
             )}
-            <canvas ref={canvasRef} className="border border-gray-200 rounded" />
+            <canvas 
+              ref={canvasRef} 
+              className="border border-gray-200 rounded block mx-auto" 
+              style={{ display: 'block' }}
+            />
           </div>
         </div>
       </div>
@@ -230,6 +266,17 @@ export default function CanvasEditor({ className }: CanvasEditorProps) {
         onClose={() => setShowSaveDialog(false)}
         canvas={canvas}
         onLoad={loadCanvas}
+      />
+
+      {/* Test Panels */}
+      <WalrusTestPanel
+        isOpen={showWalrusTest}
+        onClose={() => setShowWalrusTest(false)}
+      />
+      
+      <WalletTestPanel
+        isOpen={showWalletTest}
+        onClose={() => setShowWalletTest(false)}
       />
 
       {/* Toast Notifications */}

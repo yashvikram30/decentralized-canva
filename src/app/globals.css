@@ -2,6 +2,9 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Import font definitions */
+@import '../styles/fonts.css';
+
 :root {
   --background: #ffffff;
   --foreground: #171717;

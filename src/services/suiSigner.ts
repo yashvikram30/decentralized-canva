@@ -75,7 +75,27 @@ export class SuiSignerService {
     const address = this.keypair.getPublicKey().toSuiAddress();
     
     try {
-      await this.suiClient.requestSuiFromFaucet(address);
+      // Use direct HTTP request to faucet API (recommended for newer Sui.js versions)
+      const faucetUrl = config.suiNetwork === 'testnet' 
+        ? 'https://faucet.testnet.sui.io/gas'
+        : 'https://faucet.devnet.sui.io/gas';
+      
+      const response = await fetch(faucetUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          FixedAmountRequest: {
+            recipient: address
+          }
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`Faucet request failed: ${response.statusText}`);
+      }
+
       console.log('✅ SUI requested from faucet');
     } catch (error) {
       console.error('❌ Faucet request failed:', error);

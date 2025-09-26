@@ -21,6 +21,7 @@ import {
 import { fabric } from '@/lib/fabric';
 import { cn } from '@/utils/helpers';
 import { DrawingMode } from '@/hooks/useCanvas';
+import ImageModal from './ImageModal';
 
 interface ToolbarProps {
   canvas: fabric.Canvas | null;
@@ -60,22 +61,25 @@ export default function Toolbar({
   zoom
 }: ToolbarProps) {
   const [showColorPicker, setShowColorPicker] = useState(false);
-  const [showImageInput, setShowImageInput] = useState(false);
-  const [imageUrl, setImageUrl] = useState('');
+  const [showImageModal, setShowImageModal] = useState(false);
 
   const handleAddText = () => {
-    const text = prompt('Enter text:');
-    if (text) {
-      onAddText(text);
-    }
+    // Text is now handled by drawing mode, no need for prompt
+    onSetDrawingMode('text');
   };
 
-  const handleAddImage = () => {
-    if (imageUrl) {
-      onAddImage(imageUrl);
-      setImageUrl('');
-      setShowImageInput(false);
-    }
+  const handleImageClick = () => {
+    console.log('Image button clicked, opening modal');
+    setShowImageModal(true);
+  };
+
+  const handleImageModalClose = () => {
+    setShowImageModal(false);
+  };
+
+  const handleImageAdd = (url: string) => {
+    onAddImage(url);
+    setShowImageModal(false);
   };
 
   const handleZoomIn = () => {
@@ -129,7 +133,12 @@ export default function Toolbar({
         <div className="grid grid-cols-2 gap-2">
           <button
             onClick={handleAddText}
-            className="flex items-center justify-center p-3 text-gray-600 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors"
+            className={cn(
+              "flex items-center justify-center p-3 text-gray-600 rounded-lg transition-colors",
+              drawingMode === 'text' 
+                ? "bg-purple-100 border-2 border-purple-300" 
+                : "bg-gray-50 hover:bg-gray-100 border-2 border-gray-200"
+            )}
             title="Add Text"
           >
             <Type className="w-5 h-5" />
@@ -168,8 +177,8 @@ export default function Toolbar({
           </button>
           
           <button
-            onClick={() => setShowImageInput(!showImageInput)}
-            className="flex items-center justify-center p-3 text-gray-600 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors"
+            onClick={handleImageClick}
+            className="flex items-center justify-center p-3 text-gray-600 rounded-lg transition-colors bg-gray-50 hover:bg-gray-100 border-2 border-gray-200"
             title="Add Image"
           >
             <Image className="w-5 h-5" />
@@ -201,55 +210,6 @@ export default function Toolbar({
         </div>
       </div>
 
-      {/* Image Input */}
-      {showImageInput && (
-        <div className="space-y-2">
-          <div className="space-y-2">
-            <input
-              type="url"
-              placeholder="Enter image URL"
-              value={imageUrl}
-              onChange={(e) => setImageUrl(e.target.value)}
-              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            <div className="text-center text-xs text-gray-500">or</div>
-            <label className="block">
-              <input
-                type="file"
-                accept="image/*"
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) {
-                    const url = URL.createObjectURL(file);
-                    onAddImage(url);
-                    setShowImageInput(false);
-                  }
-                }}
-                className="hidden"
-              />
-              <div className="flex items-center justify-center space-x-2 p-2 text-sm bg-gray-50 text-gray-600 rounded hover:bg-gray-100 cursor-pointer">
-                <Upload className="w-4 h-4" />
-                <span>Upload from Computer</span>
-              </div>
-            </label>
-          </div>
-          <div className="flex space-x-2">
-            <button
-              onClick={handleAddImage}
-              disabled={!imageUrl}
-              className="flex-1 px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed"
-            >
-              Add URL
-            </button>
-            <button
-              onClick={() => setShowImageInput(false)}
-              className="flex-1 px-3 py-1 text-sm bg-gray-300 text-gray-700 rounded hover:bg-gray-400"
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-      )}
 
       {/* Color Palette */}
       <div>
@@ -318,40 +278,15 @@ export default function Toolbar({
         </div>
       </div>
 
-      {/* Debug Tools */}
-      <div>
-        <h3 className="text-sm font-medium text-gray-700 mb-3">Debug Tools</h3>
-        <div className="space-y-2">
-          <button
-            onClick={() => {
-              console.log('Test rectangle button clicked');
-              onAddRectangle();
-            }}
-            className="w-full flex items-center justify-center space-x-2 p-2 text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"
-          >
-            <Square className="w-4 h-4" />
-            <span className="text-sm">Test Rectangle</span>
-          </button>
-          
-          <button
-            onClick={() => {
-              console.log('Test circle button clicked');
-              onAddCircle();
-            }}
-            className="w-full flex items-center justify-center space-x-2 p-2 text-green-600 bg-green-50 hover:bg-green-100 rounded-lg transition-colors"
-          >
-            <Circle className="w-4 h-4" />
-            <span className="text-sm">Test Circle</span>
-          </button>
-        </div>
-      </div>
+      
 
       {/* Actions */}
       <div>
         <h3 className="text-sm font-medium text-gray-700 mb-3">Actions</h3>
         <div className="space-y-2">
           <button
-            onClick={onDeleteSelected}
+            onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); onDeleteSelected(); }}
+            onClick={(e) => { e.preventDefault(); e.stopPropagation(); onDeleteSelected(); }}
             className="w-full flex items-center justify-center space-x-2 p-2 text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors"
           >
             <Trash2 className="w-4 h-4" />
@@ -375,6 +310,15 @@ export default function Toolbar({
           </button>
         </div>
       </div>
+
+      {/* Image Modal */}
+      <ImageModal
+        isOpen={showImageModal}
+        onClose={handleImageModalClose}
+        onAddImage={handleImageAdd}
+      />
+      
+      
     </div>
   );
 }

@@ -7,9 +7,11 @@
     "dev:turbo": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "download-fonts": "node scripts/download-fonts.js"
   },
   "dependencies": {
+    "@mysten/dapp-kit": "^0.18.0",
     "@mysten/sui.js": "^0.50.0",
     "@mysten/walrus": "^0.1.0",
     "@tailwindcss/forms": "^0.5.6",

@@ -1,9 +1,10 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { fabric } from '@/lib/fabric';
 import { Download, Upload, Save, Settings } from 'lucide-react';
 import { cn } from '@/utils/helpers';
+import { updateTextFontFamily, AVAILABLE_FONTS, initializeFonts } from '@/utils/fontLoader';
 
 interface PropertyPanelProps {
   canvas: fabric.Canvas | null;
@@ -39,6 +40,9 @@ export default function PropertyPanel({
     charSpacing: 0,
   });
 
+  // Debounce timer ref
+  const debounceTimer = useRef<NodeJS.Timeout | null>(null);
+
   useEffect(() => {
     if (selectedObjects.length === 1) {
       const obj = selectedObjects[0];
@@ -69,14 +73,151 @@ export default function PropertyPanel({
     }
   }, [selectedObjects]);
 
+  // Cleanup debounce timer on unmount
+  useEffect(() => {
+    return () => {
+      if (debounceTimer.current) {
+        clearTimeout(debounceTimer.current);
+      }
+    };
+  }, []);
+
+  // Debounced update function for properties that need smooth updates
+  const debouncedUpdateProperty = useCallback((key: string, value: any) => {
+    if (!selectedObject || !canvas) {
+      console.log('No selected object or canvas available');
+      return;
+    }
+
+    console.log(`Debounced update: ${key} = ${value}`);
+    console.log('Canvas objects before update:', canvas.getObjects().length);
+
+    // Clear existing timer
+    if (debounceTimer.current) {
+      clearTimeout(debounceTimer.current);
+    }
+
+    // Set new timer
+    debounceTimer.current = setTimeout(() => {
+      console.log('Executing debounced update for:', key, value);
+      // For text objects, handle specific properties that need special treatment
+      if (selectedObject.type === 'text' || selectedObject.type === 'textbox') {
+        const textObj = selectedObject as fabric.Textbox;
+        
+        // Handle font-related properties that need special handling
+        if (key === 'fontSize' || key === 'fontFamily' || key === 'fontWeight' || key === 'fontStyle') {
+          // For text objects, we need to update the text properties properly
+          console.log(`Updating ${key} to:`, value);
+          
+          // Special handling for font size changes - update originalFontSize for scaling
+          if (key === 'fontSize') {
+            textObj.set({
+              fontSize: value,
+              ...({ originalFontSize: value } as any)
+            });
+          }
+          // Special handling for font family changes
+          else if (key === 'fontFamily') {
+            // Clear fabric font cache to prevent rendering issues
+            if (typeof fabric !== 'undefined' && fabric.util && fabric.util.clearFabricFontCache) {
+              fabric.util.clearFabricFontCache();
+            }
+            
+            try {
+              textObj.set('fontFamily', value);
+            } catch (error) {
+              console.error('Error updating font family:', error);
+              textObj.set('fontFamily', 'Arial');
+            }
+            
+            textObj.setCoords();
+            if (textObj.initDimensions) {
+              textObj.initDimensions();
+            }
+            textObj.dirty = true;
+            
+            canvas.renderAll();
+            return;
+          } else {
+            textObj.set({
+              [key]: value
+            });
+          }
+          
+          // Force text to recalculate its dimensions and coordinates
+          if (key === 'fontSize') {
+            textObj.setCoords();
+            if (textObj.initDimensions) {
+              textObj.initDimensions();
+            }
+            textObj.dirty = true;
+          }
+        } else if (key === 'textAlign') {
+          textObj.set('textAlign', value);
+        } else if (key === 'width' || key === 'height') {
+          // For textbox dimensions, use proper scaling
+          textObj.set({
+            [key]: value
+          });
+          textObj.setCoords();
+        } else {
+          // For other properties, use standard set method
+          (textObj as any).set(key, value);
+        }
+      } else {
+        // For non-text objects, use standard property update
+        (selectedObject as any).set(key, value);
+      }
+      
+      // Ensure the object is properly updated and rendered
+      selectedObject.setCoords();
+      canvas.renderAll();
+      
+      console.log('Canvas objects after update:', canvas.getObjects().length);
+      console.log('Selected object after update:', selectedObject);
+    }, 150); // 150ms debounce delay
+  }, [selectedObject, canvas]);
+
+  // Immediate update function for properties that need instant updates
   const updateProperty = (key: string, value: any) => {
     if (!selectedObject || !canvas) return;
 
     setProperties(prev => ({ ...prev, [key]: value }));
     
-    // Update the object
-    (selectedObject as any)[key] = value;
-    canvas.renderAll();
+      // For immediate updates (like color changes, alignment buttons)
+      if (key === 'fill' || key === 'stroke' || key === 'textAlign' || key === 'fontWeight' || key === 'fontStyle' || key === 'fontSize') {
+        // For text objects, handle specific properties that need special treatment
+        if (selectedObject.type === 'text' || selectedObject.type === 'textbox') {
+          const textObj = selectedObject as fabric.Textbox;
+          
+          if (key === 'textAlign') {
+            textObj.set('textAlign', value);
+          } else if (key === 'fontWeight' || key === 'fontStyle') {
+            textObj.set({
+              [key]: value
+            });
+          } else if (key === 'fontSize') {
+            // Update font size and originalFontSize for scaling
+            textObj.set({
+              fontSize: value,
+              ...({ originalFontSize: value } as any)
+            });
+          } else {
+            (textObj as any).set(key, value);
+          }
+        } else {
+          (selectedObject as any).set(key, value);
+        }
+        
+        selectedObject.setCoords();
+        canvas.renderAll();
+      } else if (key === 'fontFamily') {
+        // Font family changes should always be debounced for proper handling
+        debouncedUpdateProperty(key, value);
+      } else {
+        // For properties that can be debounced (like fontSize, dimensions)
+        debouncedUpdateProperty(key, value);
+      }
   };
 
   const handleExport = (format: 'json' | 'svg' | 'png') => {
@@ -116,6 +257,50 @@ export default function PropertyPanel({
       }
     };
     reader.readAsText(file);
+  };
+
+  // Debug function to check canvas state
+  const debugCanvasState = () => {
+    if (!canvas) return;
+    console.log('=== CANVAS DEBUG INFO ===');
+    console.log('Total objects:', canvas.getObjects().length);
+    console.log('Selected objects:', selectedObjects.length);
+    console.log('Canvas size:', canvas.getWidth(), 'x', canvas.getHeight());
+    console.log('Canvas zoom:', canvas.getZoom());
+    console.log('All objects:', canvas.getObjects().map(obj => ({
+      type: obj.type,
+      id: (obj as any).id || 'no-id',
+      visible: obj.visible,
+      left: obj.left,
+      top: obj.top,
+      width: obj.width,
+      height: obj.height
+    })));
+    console.log('========================');
+  };
+
+  // Function to ensure all objects are visible
+  const ensureObjectsVisible = () => {
+    if (!canvas) return;
+
+    canvas.getObjects().forEach(obj => {
+      if ((obj as any).__deleted) {
+        return;
+      }
+
+      if (!obj.visible) {
+        obj.set('visible', true);
+      }
+
+      if (obj.opacity === 0) {
+        obj.set('opacity', 1);
+      }
+
+      obj.setCoords();
+      obj.dirty = true;
+    });
+
+    canvas.renderAll();
   };
 
   return (
@@ -175,7 +360,7 @@ export default function PropertyPanel({
             <h3 className="text-sm font-medium text-gray-700">Object Properties</h3>
             
             {/* Text Properties - Only show for text objects */}
-            {selectedObject.type === 'text' && (
+            {(selectedObject.type === 'text' || selectedObject.type === 'textbox') && (
               <div className="space-y-3 p-3 bg-blue-50 rounded-lg">
                 <h4 className="text-xs font-medium text-blue-800">Text Properties</h4>
                 
@@ -184,17 +369,17 @@ export default function PropertyPanel({
                   <label className="block text-xs font-medium text-gray-600 mb-1">Font Family</label>
                   <select
                     value={properties.fontFamily}
-                    onChange={(e) => updateProperty('fontFamily', e.target.value)}
+                    onChange={(e) => {
+                      console.log('Font family change requested:', e.target.value);
+                      updateProperty('fontFamily', e.target.value);
+                    }}
                     className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
-                    <option value="Arial">Arial</option>
-                    <option value="Helvetica">Helvetica</option>
-                    <option value="Times New Roman">Times New Roman</option>
-                    <option value="Georgia">Georgia</option>
-                    <option value="Verdana">Verdana</option>
-                    <option value="Courier New">Courier New</option>
-                    <option value="Impact">Impact</option>
-                    <option value="Comic Sans MS">Comic Sans MS</option>
+                    {AVAILABLE_FONTS.map((font) => (
+                      <option key={font.name} value={font.name}>
+                        {font.displayName}
+                      </option>
+                    ))}
                   </select>
                 </div>
 
@@ -206,7 +391,14 @@ export default function PropertyPanel({
                     min="8"
                     max="200"
                     value={properties.fontSize}
-                    onChange={(e) => updateProperty('fontSize', Number(e.target.value))}
+                    onChange={(e) => {
+                      const value = Math.max(8, Math.min(200, Number(e.target.value) || 8));
+                      updateProperty('fontSize', value);
+                    }}
+                    onBlur={(e) => {
+                      const value = Math.max(8, Math.min(200, Number(e.target.value) || 8));
+                      setProperties(prev => ({ ...prev, fontSize: value }));
+                    }}
                     className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
@@ -256,6 +448,48 @@ export default function PropertyPanel({
                     ))}
                   </div>
                 </div>
+
+                {/* Textbox Size - Only for textbox objects */}
+                {selectedObject.type === 'textbox' && (
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">Width</label>
+                      <input
+                        type="number"
+                        min="50"
+                        max="1000"
+                        value={Math.round(properties.width)}
+                        onChange={(e) => {
+                          const value = Math.max(50, Math.min(1000, Number(e.target.value) || 50));
+                          updateProperty('width', value);
+                        }}
+                        onBlur={(e) => {
+                          const value = Math.max(50, Math.min(1000, Number(e.target.value) || 50));
+                          setProperties(prev => ({ ...prev, width: value }));
+                        }}
+                        className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">Height</label>
+                      <input
+                        type="number"
+                        min="20"
+                        max="500"
+                        value={Math.round(properties.height)}
+                        onChange={(e) => {
+                          const value = Math.max(20, Math.min(500, Number(e.target.value) || 20));
+                          updateProperty('height', value);
+                        }}
+                        onBlur={(e) => {
+                          const value = Math.max(20, Math.min(500, Number(e.target.value) || 20));
+                          setProperties(prev => ({ ...prev, height: value }));
+                        }}
+                        className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
             )}
             
@@ -403,6 +637,20 @@ export default function PropertyPanel({
             <div>Objects: {canvas?.getObjects().length || 0}</div>
             <div>Selected: {selectedObjects.length}</div>
             <div>Size: {canvas?.getWidth()} × {canvas?.getHeight()}</div>
+          </div>
+          <div className="mt-2 space-y-1">
+            <button
+              onClick={debugCanvasState}
+              className="w-full px-2 py-1 text-xs bg-yellow-100 text-yellow-800 rounded hover:bg-yellow-200"
+            >
+              Debug Canvas State
+            </button>
+            <button
+              onClick={ensureObjectsVisible}
+              className="w-full px-2 py-1 text-xs bg-green-100 text-green-800 rounded hover:bg-green-200"
+            >
+              Force Objects Visible
+            </button>
           </div>
         </div>
       </div>

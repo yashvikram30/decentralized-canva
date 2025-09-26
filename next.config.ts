@@ -6,7 +6,7 @@ const nextConfig: NextConfig = {
   
   // Experimental features
   experimental: {
-    serverComponentsExternalPackages: ['@mysten/walrus', '@mysten/walrus-wasm'],
+    // serverComponentsExternalPackages moved to serverExternalPackages above
   },
 
   webpack: (config, { isServer }) => {
