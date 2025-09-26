@@ -23,6 +23,7 @@ interface CanvasEditorProps {
 
 export default function CanvasEditor({ className }: CanvasEditorProps) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const canvasContainerRef = useRef<HTMLDivElement>(null);
   const [showAITextModal, setShowAITextModal] = useState(false);
   const [showAIImageModal, setShowAIImageModal] = useState(false);
   const [showSaveDialog, setShowSaveDialog] = useState(false);
@@ -30,6 +31,7 @@ export default function CanvasEditor({ className }: CanvasEditorProps) {
   const [showWalletTest, setShowWalletTest] = useState(false);
   const [encryptionStatus, setEncryptionStatus] = useState<'public' | 'private' | 'team' | 'template'>('public');
   const [isProcessingEncryption, setIsProcessingEncryption] = useState(false);
+  const [selectedTool, setSelectedTool] = useState<'select' | 'text' | 'rectangle' | 'circle' | 'image'>('select');
   
   const { toasts, success, error, removeToast } = useToast();
   
@@ -158,12 +160,12 @@ export default function CanvasEditor({ className }: CanvasEditorProps) {
             onAddText={addText}
             onAddRectangle={addRectangle}
             onAddCircle={addCircle}
-            onAddImage={addImage}
             onDeleteSelected={deleteSelected}
             onClearCanvas={clearCanvas}
             onSetBackgroundColor={setBackgroundColor}
             onSetZoom={setZoom}
             onSetDrawingMode={setDrawingMode}
+            onSetTool={setSelectedTool}
             onAIText={() => setShowAITextModal(true)}
             onAIImage={() => setShowAIImageModal(true)}
             onSave={() => setShowSaveDialog(true)}
@@ -220,6 +222,7 @@ export default function CanvasEditor({ className }: CanvasEditorProps) {
           ref={containerRef}
           className="flex-1 bg-gray-100 flex items-center justify-center p-8 overflow-hidden"
         >
+          <div ref={canvasContainerRef} className="relative">
           <div className="bg-white rounded-lg shadow-lg p-4 relative">
             {!isReady && (
               <div className="absolute inset-0 bg-white bg-opacity-75 flex items-center justify-center rounded-lg z-10">
@@ -235,6 +238,8 @@ export default function CanvasEditor({ className }: CanvasEditorProps) {
               style={{ display: 'block' }}
             />
           </div>
+          
+          </div>
         </div>
       </div>
 
@@ -244,6 +249,8 @@ export default function CanvasEditor({ className }: CanvasEditorProps) {
           canvas={canvas}
           selectedObjects={selectedObjects}
           onExport={exportCanvas}
+          onAddImage={addImage}
+          selectedTool={selectedTool}
         />
       </div>
 
@@ -281,6 +288,7 @@ export default function CanvasEditor({ className }: CanvasEditorProps) {
 
       {/* Toast Notifications */}
       <ToastContainer toasts={toasts} onClose={removeToast} />
+
     </div>
   );
 }

@@ -8,9 +8,10 @@ interface ImageModalProps {
   isOpen: boolean;
   onClose: () => void;
   onAddImage: (url: string) => void;
+  containerRef?: React.RefObject<HTMLDivElement | null>;
 }
 
-export default function ImageModal({ isOpen, onClose, onAddImage }: ImageModalProps) {
+export default function ImageModal({ isOpen, onClose, onAddImage, containerRef }: ImageModalProps) {
   const [imageUrl, setImageUrl] = useState('');
   const [isUploading, setIsUploading] = useState(false);
 
@@ -56,10 +57,10 @@ export default function ImageModal({ isOpen, onClose, onAddImage }: ImageModalPr
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ zIndex: 9999 }}>
-      {/* Backdrop - Completely opaque */}
+    <div className="absolute inset-0 z-50 flex items-center justify-center p-4" style={{ zIndex: 10000 }}>
+      {/* Backdrop */}
       <div 
-        className="absolute inset-0 bg-black"
+        className="absolute inset-0 bg-black/60"
         onClick={onClose}
         style={{ zIndex: 9998 }}
       />

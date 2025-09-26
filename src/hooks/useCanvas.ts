@@ -145,6 +145,11 @@ export function useCanvas(containerRef: React.RefObject<HTMLDivElement | null>) 
           return;
         }
         
+        // Disable selection visuals while drawing shapes
+        canvas.selection = false;
+        canvas.discardActiveObject();
+        canvas.renderAll();
+
         // Use the correct pointer calculation method
         const pointer = canvas.getPointer(opt.e, true);
         console.log('Starting to draw at:', pointer);
@@ -168,8 +173,8 @@ export function useCanvas(containerRef: React.RefObject<HTMLDivElement | null>) 
           newShape = new fabric.Circle({
             left: pointer.x,
             top: pointer.y,
-            originX: 'left',
-            originY: 'top',
+            originX: 'center',
+            originY: 'center',
             radius: 0,
             fill: 'transparent',
             stroke: '#007bff',
@@ -239,13 +244,15 @@ export function useCanvas(containerRef: React.RefObject<HTMLDivElement | null>) 
           }
         } else if (currentState.drawingMode === 'circle') {
           const circle = currentState.currentShape as fabric.Circle;
-          // Calculate diameter from mouse drag distance, then set radius as diameter/2
-          const diameter = Math.sqrt(Math.pow(pointer.x - startX, 2) + Math.pow(pointer.y - startY, 2));
-          const radius = diameter / 2;
-          circle.set({ 
+          const dx = pointer.x - startX;
+          const dy = pointer.y - startY;
+          const radius = Math.sqrt(dx * dx + dy * dy) / 2;
+          const cx = startX + dx / 2;
+          const cy = startY + dy / 2;
+          circle.set({
             radius: radius,
-            left: startX,
-            top: startY
+            left: cx,
+            top: cy
           });
         } else if (currentState.drawingMode === 'text') {
           const textbox = currentState.currentShape as fabric.Textbox;
@@ -388,6 +395,10 @@ export function useCanvas(containerRef: React.RefObject<HTMLDivElement | null>) 
         
         // Reset drawing state
         resetDrawingState();
+
+        // Re-enable selection after finishing drawing
+        canvas.selection = true;
+        canvas.renderAll();
       });
 
       setState(prev => ({

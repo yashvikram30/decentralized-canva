@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { fabric } from '@/lib/fabric';
-import { Download, Upload, Save, Settings } from 'lucide-react';
+import { Download, Upload, Save, Settings, Image, Link } from 'lucide-react';
 import { cn } from '@/utils/helpers';
 import { updateTextFontFamily, AVAILABLE_FONTS, initializeFonts } from '@/utils/fontLoader';
 
@@ -10,14 +10,20 @@ interface PropertyPanelProps {
   canvas: fabric.Canvas | null;
   selectedObjects: fabric.Object[];
   onExport?: (format: 'json' | 'svg' | 'png') => any;
+  onAddImage?: (url: string) => void;
+  selectedTool?: 'select' | 'text' | 'rectangle' | 'circle' | 'image';
 }
 
 export default function PropertyPanel({ 
   canvas, 
   selectedObjects, 
-  onExport 
+  onExport,
+  onAddImage,
+  selectedTool = 'select'
 }: PropertyPanelProps) {
   const [selectedObject, setSelectedObject] = useState<fabric.Object | null>(null);
+  const [imageUrl, setImageUrl] = useState('');
+  const [isUploading, setIsUploading] = useState(false);
   const [properties, setProperties] = useState({
     fill: '#000000',
     stroke: '#000000',
@@ -259,6 +265,41 @@ export default function PropertyPanel({
     reader.readAsText(file);
   };
 
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file && onAddImage) {
+      // Validate file size (max 10MB)
+      if (file.size > 10 * 1024 * 1024) {
+        alert('File size too large. Please select an image smaller than 10MB.');
+        return;
+      }
+      
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        alert('Please select a valid image file.');
+        return;
+      }
+      
+      setIsUploading(true);
+      const url = URL.createObjectURL(file);
+      onAddImage(url);
+      setIsUploading(false);
+    }
+  };
+
+  const handleUrlSubmit = () => {
+    if (imageUrl && onAddImage) {
+      onAddImage(imageUrl);
+      setImageUrl('');
+    }
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleUrlSubmit();
+    }
+  };
+
   // Debug function to check canvas state
   const debugCanvasState = () => {
     if (!canvas) return;
@@ -311,51 +352,118 @@ export default function PropertyPanel({
       </div>
 
       <div className="flex-1 overflow-y-auto">
-        {/* Export/Import */}
-        <div className="p-4 border-b border-gray-200">
-          <h3 className="text-sm font-medium text-gray-700 mb-3">Export/Import</h3>
-          <div className="space-y-2">
-            <div className="grid grid-cols-3 gap-2">
-              <button
-                onClick={() => handleExport('png')}
-                className="flex items-center justify-center space-x-1 p-2 text-sm bg-blue-50 text-blue-600 rounded hover:bg-blue-100"
-              >
-                <Download className="w-4 h-4" />
-                <span>PNG</span>
-              </button>
-              <button
-                onClick={() => handleExport('svg')}
-                className="flex items-center justify-center space-x-1 p-2 text-sm bg-green-50 text-green-600 rounded hover:bg-green-100"
-              >
-                <Download className="w-4 h-4" />
-                <span>SVG</span>
-              </button>
-              <button
-                onClick={() => handleExport('json')}
-                className="flex items-center justify-center space-x-1 p-2 text-sm bg-purple-50 text-purple-600 rounded hover:bg-purple-100"
-              >
-                <Download className="w-4 h-4" />
-                <span>JSON</span>
-              </button>
-            </div>
-            
-            <label className="block">
-              <input
-                type="file"
-                accept=".json"
-                onChange={handleImport}
-                className="hidden"
-              />
-              <div className="flex items-center justify-center space-x-1 p-2 text-sm bg-gray-50 text-gray-600 rounded hover:bg-gray-100 cursor-pointer">
-                <Upload className="w-4 h-4" />
-                <span>Import JSON</span>
+        {/* Show different content based on selected tool */}
+        {selectedTool === 'image' ? (
+          /* Image Upload Section */
+          <div className="p-4 border-b border-gray-200">
+            <h3 className="text-sm font-medium text-gray-700 mb-3">Add Image</h3>
+            <div className="space-y-4">
+              {/* Local File Upload */}
+              <div className="space-y-2">
+                <label className="block text-xs font-medium text-gray-600">Upload from Computer</label>
+                <label className="block">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleFileUpload}
+                    disabled={isUploading}
+                    className="hidden"
+                  />
+                  <div className={cn(
+                    "flex items-center justify-center space-x-2 p-3 text-sm bg-gray-50 text-gray-600 rounded-lg border-2 border-dashed border-gray-300 hover:bg-gray-100 cursor-pointer transition-colors",
+                    isUploading && "opacity-50 cursor-not-allowed"
+                  )}>
+                    <Upload className="w-4 h-4" />
+                    <span className="text-xs font-medium">
+                      {isUploading ? 'Uploading...' : 'Choose Image File'}
+                    </span>
+                  </div>
+                </label>
+                <p className="text-xs text-gray-500 text-center">
+                  Supports JPG, PNG, GIF, WebP (max 10MB)
+                </p>
               </div>
-            </label>
+              
+              <div className="flex items-center">
+                <div className="flex-1 border-t border-gray-300"></div>
+                <span className="px-2 text-xs text-gray-500">or</span>
+                <div className="flex-1 border-t border-gray-300"></div>
+              </div>
+              
+              {/* URL Input */}
+              <div className="space-y-2">
+                <label className="block text-xs font-medium text-gray-600">Add from URL</label>
+                <div className="space-y-2">
+                  <div className="relative">
+                    <Link className="absolute left-2 top-1/2 transform -translate-y-1/2 w-3 h-3 text-gray-400" />
+                    <input
+                      type="url"
+                      placeholder="Enter image URL"
+                      value={imageUrl}
+                      onChange={(e) => setImageUrl(e.target.value)}
+                      onKeyPress={handleKeyPress}
+                      className="w-full pl-7 pr-3 py-2 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+                  <button
+                    onClick={handleUrlSubmit}
+                    disabled={!imageUrl}
+                    className="w-full px-3 py-2 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors font-medium"
+                  >
+                    Add Image
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
-        </div>
+        ) : (
+          /* Default content for other tools */
+          <>
+            {/* Export/Import */}
+            <div className="p-4 border-b border-gray-200">
+              <h3 className="text-sm font-medium text-gray-700 mb-3">Export/Import</h3>
+              <div className="space-y-2">
+                <div className="grid grid-cols-3 gap-2">
+                  <button
+                    onClick={() => handleExport('png')}
+                    className="flex items-center justify-center space-x-1 p-2 text-sm bg-blue-50 text-blue-600 rounded hover:bg-blue-100"
+                  >
+                    <Download className="w-4 h-4" />
+                    <span>PNG</span>
+                  </button>
+                  <button
+                    onClick={() => handleExport('svg')}
+                    className="flex items-center justify-center space-x-1 p-2 text-sm bg-green-50 text-green-600 rounded hover:bg-green-100"
+                  >
+                    <Download className="w-4 h-4" />
+                    <span>SVG</span>
+                  </button>
+                  <button
+                    onClick={() => handleExport('json')}
+                    className="flex items-center justify-center space-x-1 p-2 text-sm bg-purple-50 text-purple-600 rounded hover:bg-purple-100"
+                  >
+                    <Download className="w-4 h-4" />
+                    <span>JSON</span>
+                  </button>
+                </div>
+                
+                <label className="block">
+                  <input
+                    type="file"
+                    accept=".json"
+                    onChange={handleImport}
+                    className="hidden"
+                  />
+                  <div className="flex items-center justify-center space-x-1 p-2 text-sm bg-gray-50 text-gray-600 rounded hover:bg-gray-100 cursor-pointer">
+                    <Upload className="w-4 h-4" />
+                    <span>Import JSON</span>
+                  </div>
+                </label>
+              </div>
+            </div>
 
-        {/* Object Properties */}
-        {selectedObject ? (
+            {/* Object Properties */}
+            {selectedObject ? (
           <div className="p-4 space-y-4">
             <h3 className="text-sm font-medium text-gray-700">Object Properties</h3>
             
@@ -653,6 +761,8 @@ export default function PropertyPanel({
             </button>
           </div>
         </div>
+        </>
+        )}
       </div>
     </div>
   );

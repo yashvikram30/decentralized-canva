@@ -21,7 +21,7 @@ import {
 import { fabric } from '@/lib/fabric';
 import { cn } from '@/utils/helpers';
 import { DrawingMode } from '@/hooks/useCanvas';
-import ImageModal from './ImageModal';
+// Image upload modal is managed at the CanvasEditor level
 
 interface ToolbarProps {
   canvas: fabric.Canvas | null;
@@ -29,12 +29,12 @@ interface ToolbarProps {
   onAddText: (text: string) => void;
   onAddRectangle: () => void;
   onAddCircle: () => void;
-  onAddImage: (url: string) => void;
   onDeleteSelected: () => void;
   onClearCanvas: () => void;
   onSetBackgroundColor: (color: string) => void;
   onSetZoom: (zoom: number) => void;
   onSetDrawingMode: (mode: DrawingMode) => void;
+  onSetTool: (tool: 'select' | 'text' | 'rectangle' | 'circle' | 'image') => void;
   onAIText?: () => void;
   onAIImage?: () => void;
   onSave?: () => void;
@@ -48,12 +48,12 @@ export default function Toolbar({
   onAddText,
   onAddRectangle,
   onAddCircle,
-  onAddImage,
   onDeleteSelected,
   onClearCanvas,
   onSetBackgroundColor,
   onSetZoom,
   onSetDrawingMode,
+  onSetTool,
   onAIText,
   onAIImage,
   onSave,
@@ -61,26 +61,17 @@ export default function Toolbar({
   zoom
 }: ToolbarProps) {
   const [showColorPicker, setShowColorPicker] = useState(false);
-  const [showImageModal, setShowImageModal] = useState(false);
 
   const handleAddText = () => {
     // Text is now handled by drawing mode, no need for prompt
     onSetDrawingMode('text');
+    onSetTool('text');
   };
 
   const handleImageClick = () => {
-    console.log('Image button clicked, opening modal');
-    setShowImageModal(true);
+    onSetTool('image');
   };
 
-  const handleImageModalClose = () => {
-    setShowImageModal(false);
-  };
-
-  const handleImageAdd = (url: string) => {
-    onAddImage(url);
-    setShowImageModal(false);
-  };
 
   const handleZoomIn = () => {
     onSetZoom(zoom * 1.2);
@@ -112,7 +103,10 @@ export default function Toolbar({
         <h3 className="text-sm font-medium text-gray-700 mb-3">Selection</h3>
         <div className="grid grid-cols-1 gap-2">
           <button
-            onClick={() => onSetDrawingMode('select')}
+            onClick={() => {
+              onSetDrawingMode('select');
+              onSetTool('select');
+            }}
             className={cn(
               "flex items-center justify-center p-3 text-gray-600 rounded-lg transition-colors",
               drawingMode === 'select' 
@@ -148,6 +142,7 @@ export default function Toolbar({
             onClick={() => {
               console.log('Rectangle button clicked');
               onSetDrawingMode('rectangle');
+              onSetTool('rectangle');
             }}
             className={cn(
               "flex items-center justify-center p-3 text-gray-600 rounded-lg transition-colors",
@@ -164,6 +159,7 @@ export default function Toolbar({
             onClick={() => {
               console.log('Circle button clicked');
               onSetDrawingMode('circle');
+              onSetTool('circle');
             }}
             className={cn(
               "flex items-center justify-center p-3 text-gray-600 rounded-lg transition-colors",
@@ -312,11 +308,7 @@ export default function Toolbar({
       </div>
 
       {/* Image Modal */}
-      <ImageModal
-        isOpen={showImageModal}
-        onClose={handleImageModalClose}
-        onAddImage={handleImageAdd}
-      />
+      {/* Managed by parent */}
       
       
     </div>
