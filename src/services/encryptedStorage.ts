@@ -28,10 +28,52 @@ export class EncryptedStorageService {
       const policy = await accessControl.createPolicy(owner, permissions);
       
       // Encrypt the canvas data
-      const encryptedData = await sealEncryption.encrypt(canvasData, policy);
+      const canvasDataBytes = new TextEncoder().encode(JSON.stringify(canvasData));
+      const sealPolicy = {
+        id: policy.owner,
+        owner: policy.owner,
+        allowedUsers: policy.permissions.read,
+        conditions: {
+          minEpochs: 1,
+          maxEpochs: 1000,
+          requireWallet: true
+        }
+      };
+      const encryptionResult = await sealEncryption.encryptData(canvasDataBytes, owner, sealPolicy);
+      const encryptedData = encryptionResult.encryptedData;
       
       // Store in Walrus
-      const storageResult = await walrusClient.store(encryptedData, signer, 3);
+      const walrusData = {
+        designData: canvasData,
+        metadata: {
+          name: name,
+          created: new Date().toISOString(),
+          encrypted: true,
+          walletAddress: owner,
+          walletName: 'Encrypted Storage',
+          walletType: 'encrypted',
+          version: '1.0.0',
+          type: 'canva-design',
+          canvasSize: {
+            width: 800,
+            height: 600
+          }
+        },
+        encryptedData: encryptedData,
+        sealEncryption: {
+          encryptedData: encryptedData,
+          accessPolicyId: sealPolicy.id,
+          keyServers: [],
+          threshold: 2,
+          metadata: {
+            originalSize: canvasDataBytes.length,
+            encryptedSize: encryptedData.length,
+            algorithm: 'AES-256-CBC',
+            timestamp: Date.now()
+          }
+        }
+      };
+      const storageResult = await walrusClient.store(walrusData, signer, 3);
       
       // Create design record
       const design: StoredDesign = {
@@ -67,10 +109,11 @@ export class EncryptedStorageService {
       }
 
       // Retrieve from Walrus
-      const storageData = await walrusClient.retrieve(design.blobId);
+      const storageData = await walrusClient.retrieve(design.blobId, user);
       
       // Decrypt the data
-      const decryptedData = await sealEncryption.decrypt(storageData.data, user);
+      const decryptionResult = await sealEncryption.decryptData(storageData.data.encryptedData!, design.policyId, user);
+      const decryptedData = JSON.parse(new TextDecoder().decode(decryptionResult.decryptedData));
       
       // Return design with decrypted data
       return {
@@ -96,10 +139,53 @@ export class EncryptedStorageService {
       }
 
       // Encrypt updated data
-      const encryptedData = await sealEncryption.encrypt(updates.canvasData || design.canvasData, design.policyId);
+      const canvasDataToEncrypt = updates.canvasData || design.canvasData;
+      const canvasDataBytes = new TextEncoder().encode(JSON.stringify(canvasDataToEncrypt));
+      const sealPolicy = {
+        id: design.policyId,
+        owner: design.policyId,
+        allowedUsers: [design.policyId],
+        conditions: {
+          minEpochs: 1,
+          maxEpochs: 1000,
+          requireWallet: true
+        }
+      };
+      const encryptionResult = await sealEncryption.encryptData(canvasDataBytes, user, sealPolicy);
+      const encryptedData = encryptionResult.encryptedData;
       
       // Update in Walrus
-      await walrusClient.store(encryptedData, signer, 3);
+      const walrusData = {
+        designData: canvasDataToEncrypt,
+        metadata: {
+          name: design.name,
+          created: new Date(design.createdAt).toISOString(),
+          encrypted: true,
+          walletAddress: user,
+          walletName: 'Encrypted Storage',
+          walletType: 'encrypted',
+          version: '1.0.0',
+          type: 'canva-design',
+          canvasSize: {
+            width: 800,
+            height: 600
+          }
+        },
+        encryptedData: encryptedData,
+        sealEncryption: {
+          encryptedData: encryptedData,
+          accessPolicyId: sealPolicy.id,
+          keyServers: [],
+          threshold: 2,
+          metadata: {
+            originalSize: canvasDataBytes.length,
+            encryptedSize: encryptedData.length,
+            algorithm: 'AES-256-CBC',
+            timestamp: Date.now()
+          }
+        }
+      };
+      await walrusClient.store(walrusData, signer, 3);
       
       // Update design record
       const updatedDesign = {

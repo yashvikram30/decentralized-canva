@@ -29,10 +29,10 @@ export function useEncryption() {
     }
   }, []);
 
-  const encrypt = useCallback(async (data: any, accessPolicy: any) => {
+  const encrypt = useCallback(async (data: Uint8Array, userAddress: string, accessPolicy?: any) => {
     try {
       setState(prev => ({ ...prev, isEncrypting: true, error: null }));
-      const result = await sealEncryption.encrypt(data, accessPolicy);
+      const result = await sealEncryption.encryptData(data, userAddress, accessPolicy);
       setState(prev => ({ ...prev, isEncrypting: false }));
       return result;
     } catch (error) {
@@ -45,10 +45,10 @@ export function useEncryption() {
     }
   }, []);
 
-  const decrypt = useCallback(async (encryptedData: any, userIdentity: any) => {
+  const decrypt = useCallback(async (encryptedData: Uint8Array, accessPolicyId: string, userAddress: string) => {
     try {
       setState(prev => ({ ...prev, isDecrypting: true, error: null }));
-      const result = await sealEncryption.decrypt(encryptedData, userIdentity);
+      const result = await sealEncryption.decryptData(encryptedData, accessPolicyId, userAddress);
       setState(prev => ({ ...prev, isDecrypting: false }));
       return result;
     } catch (error) {

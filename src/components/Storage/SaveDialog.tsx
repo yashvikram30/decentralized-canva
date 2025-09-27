@@ -2,11 +2,10 @@
 
 import React, { useState } from 'react';
 import { fabric } from '@/lib/fabric';
-import { Save, Loader2, Copy, Check, X, AlertCircle, Wallet } from 'lucide-react';
+import { Save, Loader2, Copy, Check, X, AlertCircle, Wallet, Shield, Lock } from 'lucide-react';
 import { cn } from '@/utils/helpers';
 import { useWalrus } from '@/hooks/useWalrus';
-import { useCurrentAccount, useCurrentWallet, useSuiClient, useSignAndExecuteTransaction } from '@mysten/dapp-kit';
-import { suiSignerService } from '@/services/suiSigner';
+import { useWalletService } from '@/services/walletSigner';
 import WalletModal from '@/components/Wallet/WalletModal';
 
 interface SaveDialogProps {
@@ -26,37 +25,18 @@ export default function SaveDialog({ isOpen, onClose, canvas, onLoad }: SaveDial
   const [error, setError] = useState<string | null>(null);
   const [showWalletModal, setShowWalletModal] = useState(false);
 
-  const { store, retrieve, isStoring, isRetrieving, error: walrusError } = useWalrus();
-  const currentAccount = useCurrentAccount();
-  const currentWallet = useCurrentWallet();
-  const suiClient = useSuiClient();
-  const { mutateAsync: signAndExecuteTransaction } = useSignAndExecuteTransaction();
+  const { store, retrieve, isStoring, isRetrieving, isEncrypting, isDecrypting, error: walrusError } = useWalrus();
+  const walletService = useWalletService();
 
-  const isConnected = !!currentAccount;
-  const address = currentAccount?.address || null;
-  const walletName = currentWallet && 'name' in currentWallet ? currentWallet.name as string : 'Connected Wallet';
-  const walletType = currentWallet && 'name' in currentWallet ? 
-    (currentWallet.name as string).toLowerCase().includes('slush') ? 'slush' :
-    (currentWallet.name as string).toLowerCase().includes('sui wallet') ? 'sui-wallet' :
-    (currentWallet.name as string).toLowerCase().includes('suiet') ? 'suiet' : 'slush' : null;
+  const isConnected = walletService.isConnected;
+  const address = walletService.address;
+  const walletName = typeof walletService.walletName === 'string' ? walletService.walletName : 'Unknown Wallet';
+  const walletType = walletService.currentWallet && 'name' in walletService.currentWallet ? 
+    (walletService.currentWallet.name as string).toLowerCase().includes('slush') ? 'slush' :
+    (walletService.currentWallet.name as string).toLowerCase().includes('sui wallet') ? 'sui-wallet' :
+    (walletService.currentWallet.name as string).toLowerCase().includes('suiet') ? 'suiet' :
+    (walletService.currentWallet.name as string).toLowerCase().includes('unsafe-burner') ? 'unsafe-burner' : 'slush' : 'slush';
 
-  const getSuiClient = () => suiClient as any;
-  const signTransaction = async (transactionBlock: any) => {
-    if (!currentAccount) {
-      throw new Error('Wallet not connected');
-    }
-    return await signAndExecuteTransaction({
-      transaction: transactionBlock,
-      account: currentAccount,
-      chain: 'sui:testnet', // or mainnet based on config
-    });
-  };
-
-  const generateBlobId = () => {
-    const timestamp = Date.now().toString(36);
-    const random = Math.random().toString(36).substring(2, 8);
-    return `walrus_${timestamp}_${random}`;
-  };
 
   const handleSave = async () => {
     if (!canvas || !designName.trim()) return;
@@ -70,30 +50,18 @@ export default function SaveDialog({ isOpen, onClose, canvas, onLoad }: SaveDial
     }
     
     try {
-      // Create a signer from the connected wallet
-      const suiClient = getSuiClient();
-      
-      // For production wallets, we need to create a signer that can sign transactions
-      // For now, we'll use the suiSignerService as a fallback for development
-      if (walletType === 'unsafe-burner') {
-        // For unsafe burner, generate a new keypair
-        if (!suiSignerService.hasSigner()) {
-          suiSignerService.generateKeypair();
-        }
-      } else {
-        // For real wallets, we need to create a signer that can work with the wallet
-        // This is a simplified approach - in production you'd use proper wallet adapters
-        if (!suiSignerService.hasSigner()) {
-          // Generate a temporary keypair for this session
-          // In production, this would be replaced with proper wallet integration
-          suiSignerService.generateKeypair();
-        }
+      // Use the connected wallet service for Walrus operations
+      if (!isConnected) {
+        throw new Error('Wallet not connected. Please connect your wallet first.');
       }
 
-      const signer = suiSignerService.getSigner();
-      if (!signer) {
-        throw new Error('Failed to create signer');
+      // Check if wallet supports at least basic transaction signing
+      if (!walletService.canSignTransaction) {
+        throw new Error('Your wallet does not support transaction signing. Please try a different wallet.');
       }
+
+      // Log the wallet address being used for Walrus operations
+      console.log('Using connected wallet for Walrus operations:', address);
 
       const designData = canvas.toJSON();
       
@@ -103,14 +71,35 @@ export default function SaveDialog({ isOpen, onClose, canvas, onLoad }: SaveDial
           name: designName,
           created: new Date().toISOString(),
           encrypted: isEncrypted,
-          walletAddress: address,
-          walletName: walletName,
-          walletType: walletType,
+          walletAddress: address || 'unknown',
+          walletName: walletName || 'Unknown Wallet',
+          walletType: walletType || 'unknown',
+          version: '1.0.0',
+          type: 'canva-design',
+          canvasSize: {
+            width: canvas.getWidth(),
+            height: canvas.getHeight()
+          }
         }
       };
       
-      // Store to Walrus
-      const result = await store(designToStore, signer, 3); // 3 epochs
+      // Create a signer-compatible object for Walrus
+      const walrusSigner = {
+        getAddress: () => address!,
+        toSuiAddress: () => address!,
+        signPersonalMessage: walletService.signPersonalMessage,
+        signTransaction: walletService.signTransaction,
+        signAndExecuteTransaction: walletService.signAndExecuteTransaction,
+      };
+
+      // Store to Walrus with encryption if enabled
+      const result = await store(
+        designToStore, 
+        walrusSigner as any, // Type assertion for Walrus compatibility
+        1, // epochs (reduced for lower WAL requirement)
+        { 'app': 'decentralized-canva', 'type': 'design' },
+        address || undefined // userAddress for encryption
+      );
       setSavedBlobId(result.blobId);
       
       // Auto-close after showing success
@@ -133,8 +122,8 @@ export default function SaveDialog({ isOpen, onClose, canvas, onLoad }: SaveDial
     setError(null);
     
     try {
-      // Load from Walrus
-      const result = await retrieve(loadBlobId);
+      // Load from Walrus with decryption if needed
+      const result = await retrieve(loadBlobId, address || undefined);
       onLoad?.(result.data.designData);
       
       // Close modal
@@ -251,6 +240,11 @@ export default function SaveDialog({ isOpen, onClose, canvas, onLoad }: SaveDial
               <p className="mt-1 text-sm text-green-700">
                 Connected as: {address?.slice(0, 6)}...{address?.slice(-4)} ({walletName})
               </p>
+              {!walletService.canSignAndExecute && walletService.canSignTransaction && (
+                <p className="mt-1 text-xs text-blue-600">
+                  ℹ️ Using fallback signing method (sign + execute)
+                </p>
+              )}
             </div>
           )}
 
@@ -297,25 +291,43 @@ export default function SaveDialog({ isOpen, onClose, canvas, onLoad }: SaveDial
                     />
                   </div>
 
-                  <div className="flex items-center space-x-3">
-                    <input
-                      type="checkbox"
-                      id="encrypt"
-                      checked={isEncrypted}
-                      onChange={(e) => setIsEncrypted(e.target.checked)}
-                      className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                    />
-                    <label htmlFor="encrypt" className="text-sm text-gray-700">
-                      Encrypt design (recommended for private content)
-                    </label>
+                  <div className="space-y-3">
+                    <div className="flex items-center space-x-3">
+                      <input
+                        type="checkbox"
+                        id="encrypt"
+                        checked={isEncrypted}
+                        onChange={(e) => setIsEncrypted(e.target.checked)}
+                        className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                      />
+                      <label htmlFor="encrypt" className="text-sm text-gray-700 flex items-center space-x-2">
+                        <Shield className="w-4 h-4" />
+                        <span>Encrypt design with Seal (recommended for private content)</span>
+                      </label>
+                    </div>
+                    
+                    {isEncrypted && (
+                      <div className="ml-7 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                        <div className="flex items-center space-x-2 mb-2">
+                          <Lock className="w-4 h-4 text-blue-600" />
+                          <span className="text-sm font-medium text-blue-800">Seal Encryption Enabled</span>
+                        </div>
+                        <div className="text-xs text-blue-700 space-y-1">
+                          <p>• Your design will be encrypted using threshold encryption</p>
+                          <p>• Only you can decrypt and access the design</p>
+                          <p>• Access is controlled via Sui blockchain policies</p>
+                          <p>• Multiple key servers ensure security and availability</p>
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   <button
                     onClick={handleSave}
-                    disabled={isStoring || !designName.trim() || !isConnected}
+                    disabled={isStoring || isEncrypting || !designName.trim() || !isConnected}
                     className="w-full flex items-center justify-center space-x-2 px-4 py-3 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    {isStoring ? (
+                    {isStoring || isEncrypting ? (
                       <Loader2 className="w-5 h-5 animate-spin" />
                     ) : !isConnected ? (
                       <Wallet className="w-5 h-5" />
@@ -323,7 +335,9 @@ export default function SaveDialog({ isOpen, onClose, canvas, onLoad }: SaveDial
                       <Save className="w-5 h-5" />
                     )}
                     <span>
-                      {isStoring 
+                      {isEncrypting 
+                        ? '🔐 Encrypting with Seal...' 
+                        : isStoring 
                         ? '📦 Storing on Walrus network...' 
                         : !isConnected 
                         ? 'Connect Wallet to Save'
@@ -354,16 +368,21 @@ export default function SaveDialog({ isOpen, onClose, canvas, onLoad }: SaveDial
 
               <button
                 onClick={handleLoad}
-                disabled={isRetrieving || !loadBlobId.trim()}
+                disabled={isRetrieving || isDecrypting || !loadBlobId.trim()}
                 className="w-full flex items-center justify-center space-x-2 px-4 py-3 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {isRetrieving ? (
+                {isRetrieving || isDecrypting ? (
                   <Loader2 className="w-5 h-5 animate-spin" />
                 ) : (
                   <Save className="w-5 h-5" />
                 )}
                 <span>
-                  {isRetrieving ? '📥 Loading from Walrus...' : 'Load from Walrus'}
+                  {isDecrypting 
+                    ? '🔓 Decrypting with Seal...' 
+                    : isRetrieving 
+                    ? '📥 Loading from Walrus...' 
+                    : 'Load from Walrus'
+                  }
                 </span>
               </button>
             </div>

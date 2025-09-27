@@ -23,7 +23,8 @@ export default function WalletStatus({ onConnect: _onConnect }: WalletStatusProp
   const walletType = currentWallet && 'name' in currentWallet ? 
     (currentWallet.name as string).toLowerCase().includes('slush') ? 'slush' :
     (currentWallet.name as string).toLowerCase().includes('sui wallet') ? 'sui-wallet' :
-    (currentWallet.name as string).toLowerCase().includes('suiet') ? 'suiet' : 'slush' : null;
+    (currentWallet.name as string).toLowerCase().includes('suiet') ? 'suiet' :
+    (currentWallet.name as string).toLowerCase().includes('unsafe-burner') ? 'unsafe-burner' : 'slush' : null;
 
   const { mutateAsync: disconnectWallet, isPending: isDisconnecting } = useDisconnectWallet();
 

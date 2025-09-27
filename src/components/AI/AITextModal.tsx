@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { fabric } from '@/lib/fabric';
-import { Type, Loader2, Plus, Sparkles, X } from 'lucide-react';
+import { Loader2, Plus, Sparkles, X } from 'lucide-react';
 import { useAI } from '@/hooks/useAI';
 import { cn } from '@/utils/helpers';
 

@@ -6,23 +6,74 @@ import type { Signer } from '@mysten/sui/cryptography';
 export class SuiSignerService {
   private suiClient: SuiClient;
   private keypair: Ed25519Keypair | null = null;
+  private readonly STORAGE_KEY = 'decentralized_canva_signer_keypair';
 
   constructor() {
     this.suiClient = new SuiClient({
       url: config.suiRpcUrl,
     });
+    
+    // Try to load existing keypair from localStorage
+    this.loadKeypairFromStorage();
+  }
+
+  // Load keypair from localStorage
+  private loadKeypairFromStorage(): void {
+    try {
+      if (typeof window !== 'undefined') {
+        const stored = localStorage.getItem(this.STORAGE_KEY);
+        if (stored) {
+          const keypairData = JSON.parse(stored);
+          this.keypair = Ed25519Keypair.fromSecretKey(keypairData.secretKey);
+          console.log('✅ Loaded existing signer from storage:', this.getAddress());
+        }
+      }
+    } catch (error) {
+      console.warn('Failed to load keypair from storage:', error);
+      // Clear invalid data
+      this.clearStoredKeypair();
+    }
+  }
+
+  // Save keypair to localStorage
+  private saveKeypairToStorage(): void {
+    try {
+      if (typeof window !== 'undefined' && this.keypair) {
+        const keypairData = {
+          secretKey: this.keypair.getSecretKey(),
+          publicKey: this.keypair.getPublicKey().toRawBytes(),
+        };
+        localStorage.setItem(this.STORAGE_KEY, JSON.stringify(keypairData));
+        console.log('✅ Saved signer to storage:', this.getAddress());
+      }
+    } catch (error) {
+      console.warn('Failed to save keypair to storage:', error);
+    }
+  }
+
+  // Clear stored keypair
+  private clearStoredKeypair(): void {
+    try {
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem(this.STORAGE_KEY);
+      }
+    } catch (error) {
+      console.warn('Failed to clear stored keypair:', error);
+    }
   }
 
   // Generate a new keypair for demo purposes
   // In production, you would integrate with wallet providers
   generateKeypair(): Ed25519Keypair {
     this.keypair = new Ed25519Keypair();
+    this.saveKeypairToStorage();
     return this.keypair;
   }
 
   // Import keypair from private key
   importKeypair(privateKey: string): Ed25519Keypair {
     this.keypair = Ed25519Keypair.fromSecretKey(privateKey);
+    this.saveKeypairToStorage();
     return this.keypair;
   }
 
@@ -39,6 +90,13 @@ export class SuiSignerService {
   // Check if signer is available
   hasSigner(): boolean {
     return this.keypair !== null;
+  }
+
+  // Clear the current keypair and remove from storage
+  clearKeypair(): void {
+    this.keypair = null;
+    this.clearStoredKeypair();
+    console.log('🗑️ Signer cleared');
   }
 
   // Get Sui client

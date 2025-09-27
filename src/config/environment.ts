@@ -19,9 +19,22 @@ export const config = {
   // Walrus Configuration
   walrusWasmUrl: process.env.NEXT_PUBLIC_WALRUS_WASM_URL || 'https://unpkg.com/@mysten/walrus-wasm@latest/web/walrus_wasm_bg.wasm',
   
-  // Mock Seal Configuration (for development)
+  // Seal Configuration
   sealEnabled: process.env.NEXT_PUBLIC_SEAL_ENABLED === 'true',
-  encryptionMode: process.env.NEXT_PUBLIC_ENCRYPTION_MODE || 'mock',
+  sealKeyServers: process.env.NEXT_PUBLIC_SEAL_KEY_SERVERS?.split(',') || [
+    '0x73d05d62c18d9374e3ea529e8e0ed6161da1a141a94d3f76ae3fe4e99356db75',
+    '0xf5d14a81a982144ae441cd7d64b09027f116a468bd36e7eca494f750591623c8'
+  ],
+  sealThreshold: parseInt(process.env.NEXT_PUBLIC_SEAL_THRESHOLD || '2'),
+  sealAccessPolicyId: process.env.NEXT_PUBLIC_SEAL_ACCESS_POLICY_ID || '',
+  
+  // Contract Configuration
+  packageId: process.env.NEXT_PUBLIC_PACKAGE_ID || '0x811bc4f1adb18ba74c63a18d9924e5a90c8e07c889bad67471de2218b17a6539',
+  registryId: process.env.NEXT_PUBLIC_REGISTRY_ID || '0xf97923d580f225dd879eac669fa9225e74df3c94454afac70d1b5636b7d05425',
+  
+  // Encryption Configuration
+  encryptionMode: process.env.NEXT_PUBLIC_ENCRYPTION_MODE || 'seal', // 'seal' | 'mock' | 'none'
+  enableClientSideEncryption: process.env.NEXT_PUBLIC_ENABLE_CLIENT_ENCRYPTION !== 'false',
 } as const;
 
 // Validate required environment variables

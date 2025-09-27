@@ -26,16 +26,39 @@ export interface WalrusTestSuite {
 
 export class WalrusTester {
   private testData = {
-    simple: { message: "Hello Walrus!", timestamp: Date.now() },
+    simple: {
+      designData: { version: "1.0.0", objects: [] },
+      metadata: {
+        name: "Test Design",
+        created: new Date().toISOString(),
+        encrypted: false,
+        walletAddress: "test-address",
+        walletName: "Test Wallet",
+        walletType: "test",
+        version: "1.0.0",
+        type: "canva-design",
+        canvasSize: { width: 800, height: 600 }
+      }
+    },
     complex: {
-      design: {
+      designData: {
+        version: "1.0.0",
         objects: [
           { type: "text", content: "Test Design", x: 100, y: 100 },
           { type: "rectangle", width: 200, height: 100, x: 50, y: 50 }
-        ],
-        metadata: { name: "Test Design", version: "1.0" }
+        ]
       },
-      timestamp: Date.now()
+      metadata: {
+        name: "Complex Test Design",
+        created: new Date().toISOString(),
+        encrypted: false,
+        walletAddress: "test-address",
+        walletName: "Test Wallet",
+        walletType: "test",
+        version: "1.0.0",
+        type: "canva-design",
+        canvasSize: { width: 800, height: 600 }
+      }
     }
   };
 
@@ -166,7 +189,7 @@ export class WalrusTester {
         const signer = suiSignerService.getSigner();
         if (!signer) throw new Error('No signer available');
         
-        await walrusClient.store(null, signer, 3);
+        await walrusClient.store(null as any, signer, 3);
         return {
           success: false,
           message: 'Error handling test failed - should have thrown error for null data',

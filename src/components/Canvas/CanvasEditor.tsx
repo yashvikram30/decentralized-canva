@@ -15,7 +15,7 @@ import { useToast } from '@/hooks/useToast';
 import { cn } from '@/utils/helpers';
 import { initializeFonts } from '@/utils/fontLoader';
 import WalletStatus from '../Wallet/WalletStatus';
-import { useCurrentAccount, ConnectButton } from '@mysten/dapp-kit';
+import { useCurrentAccount } from '@mysten/dapp-kit';
 
 interface CanvasEditorProps {
   className?: string;
@@ -32,7 +32,7 @@ export default function CanvasEditor({ className }: CanvasEditorProps) {
   const [selectedTool, setSelectedTool] = useState<'select' | 'text' | 'rectangle' | 'circle' | 'image'>('select');
   const [activeAIPanel, setActiveAIPanel] = useState<'text' | 'image' | null>(null);
   
-  const { toasts, success, error, removeToast } = useToast();
+  const { toasts, success, removeToast } = useToast();
   const currentAccount = useCurrentAccount();
   const isConnected = !!currentAccount;
   

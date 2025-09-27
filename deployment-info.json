@@ -1,0 +1,17 @@
+{
+  "packageId": "0x811bc4f1adb18ba74c63a18d9924e5a90c8e07c889bad67471de2218b17a6539",
+  "registryId": "0xf97923d580f225dd879eac669fa9225e74df3c94454afac70d1b5636b7d05425",
+  "network": "testnet",
+  "rpcUrl": "https://fullnode.testnet.sui.io",
+  "deployedAt": "2024-01-27T09:54:12.021Z",
+  "version": "1.0.0",
+  "transactionDigest": "Hp25CGFfE9Ms7j2G6SrzFn2acvwafwXGZP7QYc7o5LeM",
+  "environmentVariables": {
+    "NEXT_PUBLIC_PACKAGE_ID": "0x811bc4f1adb18ba74c63a18d9924e5a90c8e07c889bad67471de2218b17a6539",
+    "NEXT_PUBLIC_REGISTRY_ID": "0xf97923d580f225dd879eac669fa9225e74df3c94454afac70d1b5636b7d05425",
+    "NEXT_PUBLIC_SEAL_ENABLED": "true",
+    "NEXT_PUBLIC_SEAL_THRESHOLD": "2",
+    "NEXT_PUBLIC_SEAL_KEY_SERVERS": "0x73d05d62c18d9374e3ea529e8e0ed6161da1a141a94d3f76ae3fe4e99356db75,0xf5d14a81a982144ae441cd7d64b09027f116a468bd36e7eca494f750591623c8",
+    "NEXT_PUBLIC_ENCRYPTION_MODE": "seal"
+  }
+}
