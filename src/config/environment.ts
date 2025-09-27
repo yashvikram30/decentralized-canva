@@ -7,6 +7,10 @@ export const config = {
   // Sui Network Configuration (Walrus uses Sui network)
   suiNetwork: process.env.NEXT_PUBLIC_SUI_NETWORK || 'testnet',
   suiRpcUrl: process.env.NEXT_PUBLIC_SUI_RPC_URL || 'https://fullnode.testnet.sui.io',
+  suiDevnetRpcUrl: 'https://fullnode.devnet.sui.io',
+  suiTestnetRpcUrl: 'https://fullnode.testnet.sui.io',
+  // Default to testnet if not specified
+  defaultNetwork: process.env.NEXT_PUBLIC_SUI_DEFAULT_NETWORK || 'testnet',
   
   // Walrus Configuration
   walrusWasmUrl: process.env.NEXT_PUBLIC_WALRUS_WASM_URL || 'https://unpkg.com/@mysten/walrus-wasm@latest/web/walrus_wasm_bg.wasm',

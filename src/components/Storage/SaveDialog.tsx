@@ -7,6 +7,7 @@ import { cn } from '@/utils/helpers';
 import { useWalrus } from '@/hooks/useWalrus';
 import { useWallet } from '@/contexts/WalletContext';
 import { suiSignerService } from '@/services/suiSigner';
+import { encryptedStorage } from '@/services/encryptedStorage';
 import WalletModal from '@/components/Wallet/WalletModal';
 
 interface SaveDialogProps {
@@ -27,7 +28,9 @@ export default function SaveDialog({ isOpen, onClose, canvas, onLoad }: SaveDial
   const [showWalletModal, setShowWalletModal] = useState(false);
 
   const { store, retrieve, isStoring, isRetrieving, error: walrusError } = useWalrus();
-  const { isConnected, address, getSuiClient } = useWallet();
+  const { isConnected, address, getSuiClient, getSigner } = useWallet();
+  const [isPublishing, setIsPublishing] = useState(false);
+  const [publicBlobId, setPublicBlobId] = useState('');
 
   const generateBlobId = () => {
     const timestamp = Date.now().toString(36);
@@ -196,6 +199,25 @@ export default function SaveDialog({ isOpen, onClose, canvas, onLoad }: SaveDial
 
           {/* Wallet Status */}
           {!isConnected && (
+            <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <Wallet className="w-5 h-5 text-yellow-600" />
+                  <span className="font-medium text-yellow-800">Wallet Required</span>
+                </div>
+                <button
+                  onClick={() => setShowWalletModal(true)}
+                  className="px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg text-sm font-medium transition-colors"
+                >
+                  Connect Wallet
+                </button>
+              </div>
+              <p className="mt-2 text-sm text-yellow-700">
+                Please connect your wallet to save or load designs from Walrus storage.
+              </p>
+            </div>
+          )}
+          {!isConnected && (
             <div className="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
               <div className="flex items-center space-x-2">
                 <Wallet className="w-5 h-5 text-yellow-600" />
@@ -297,6 +319,81 @@ export default function SaveDialog({ isOpen, onClose, canvas, onLoad }: SaveDial
                     </span>
                   </button>
                 </>
+              )}
+
+              {/* Publish Section */}
+              {savedBlobId && (
+                <div className="mt-3 space-y-2">
+                  <button
+                    onClick={async () => {
+                      // Confirm publish
+                      const ok = window.confirm('Are you sure? This will make your design public.');
+                      if (!ok) return;
+
+                      setIsPublishing(true);
+                      setPublicBlobId('');
+                      setError(null);
+
+                      try {
+                        // Get signer from wallet context or fallback
+                        const walletSigner = getSigner();
+                        const signerToUse = walletSigner ?? (suiSignerService.hasSigner() ? suiSignerService.getSigner() : null);
+
+                        if (!signerToUse) throw new Error('No signer available to publish');
+
+                        // We need the local design id. We don't persist mapping blobId->designId in SaveDialog,
+                        // so for now attempt to find a matching design by blobId in encryptedStorage.
+                        // encryptedStorage keeps an in-memory map; search for the design id.
+                        let targetDesignId: string | null = null;
+                        // @ts-ignore - access private map for convenience (consider adding a getter in service)
+                        for (const [id, d] of (encryptedStorage as any).designs?.entries() || []) {
+                          if (d.blobId === savedBlobId) {
+                            targetDesignId = id;
+                            break;
+                          }
+                        }
+
+                        if (!targetDesignId) {
+                          throw new Error('Local design record not found for this blob. Please use the app Save flow so designs are tracked before publishing.');
+                        }
+
+                        const res = await encryptedStorage.publishDesign(targetDesignId, address || '', signerToUse);
+                        setPublicBlobId(res.publicBlobId);
+                      } catch (err) {
+                        console.error('Publish failed:', err);
+                        setError(err instanceof Error ? err.message : 'Publish failed');
+                      } finally {
+                        setIsPublishing(false);
+                      }
+                    }}
+                    disabled={isPublishing}
+                    className="w-full flex items-center justify-center space-x-2 px-4 py-3 text-sm font-medium text-white bg-orange-600 rounded-lg hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isPublishing ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
+                    <span>{isPublishing ? 'Publishing...' : 'Publish (make public)'}</span>
+                  </button>
+
+                  {publicBlobId && (
+                    <div className="p-3 bg-yellow-50 border border-yellow-200 rounded">
+                      <div className="flex items-center justify-between">
+                        <code className="text-xs font-mono break-all">{publicBlobId}</code>
+                        <button
+                          onClick={async () => {
+                            try {
+                              await navigator.clipboard.writeText(publicBlobId);
+                            } catch (err) {
+                              console.error('Copy failed', err);
+                            }
+                          }}
+                          className="ml-2 px-2 py-1 bg-yellow-600 text-white rounded text-xs"
+                        >
+                          Copy
+                        </button>
+                      </div>
+                      <p className="mt-2 text-xs text-gray-600">This blob is public and can be retrieved without decryption.</p>
+                    </div>
+                  )}
+                </div>
               )}
             </div>
           ) : (

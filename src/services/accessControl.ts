@@ -13,7 +13,7 @@ export interface AccessPolicy {
 export class AccessControlService {
   private policies: Map<string, AccessPolicy> = new Map();
 
-  async createPolicy(owner: string, initialPermissions: Partial<AccessPolicy['permissions']> = {}): Promise<AccessPolicy> {
+  async createPolicy(owner: string, initialPermissions: Partial<AccessPolicy['permissions']> = {}): Promise<{ policy: AccessPolicy; policyId: string }> {
     const policy: AccessPolicy = {
       owner,
       permissions: {
@@ -29,7 +29,7 @@ export class AccessControlService {
     this.policies.set(policyId, policy);
     
     console.log('🔐 Access policy created:', policyId);
-    return policy;
+    return { policy, policyId };
   }
 
   async updatePolicy(policyId: string, updates: Partial<AccessPolicy>): Promise<AccessPolicy | null> {

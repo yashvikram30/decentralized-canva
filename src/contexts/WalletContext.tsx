@@ -17,6 +17,11 @@ export interface WalletContextType extends WalletState {
   disconnect: () => void;
   refreshBalance: () => Promise<void>;
   getSuiClient: () => SuiClient;
+  /**
+   * Return a signer-compatible object for use with SDKs that accept the wallet directly.
+   * Returns the injected `window.suiWallet` object when available, otherwise null.
+   */
+  getSigner: () => any | null;
 }
 
 const WalletContext = createContext<WalletContextType | undefined>(undefined);
@@ -45,9 +50,15 @@ export function WalletProvider({ children }: WalletProviderProps) {
 
   const checkExistingConnection = async () => {
     try {
-      // Check if wallet is available in window
-      if (typeof window !== 'undefined' && (window as any).suiWallet) {
-        const wallet = (window as any).suiWallet;
+      const isInstalled = await isSuiWalletInstalled();
+      if (!isInstalled) {
+        console.log('Sui Wallet not installed');
+        return;
+      }
+
+      const wallet = (window as any).suiWallet;
+      
+      try {
         const accounts = await wallet.getAccounts();
         
         if (accounts.length > 0) {
@@ -60,10 +71,49 @@ export function WalletProvider({ children }: WalletProviderProps) {
           }));
           await refreshBalance();
         }
+      } catch (accountError) {
+        console.log('Failed to get accounts:', accountError);
+        setState(prev => ({
+          ...prev,
+          isConnected: false,
+          address: null,
+          error: 'no_accounts'
+        }));
       }
     } catch (error) {
-      console.log('No existing wallet connection found');
+      console.log('Error checking wallet connection:', error);
+      setState(prev => ({
+        ...prev,
+        isConnected: false,
+        address: null,
+        error: 'wallet_not_installed'
+      }));
     }
+  };
+
+  const isSuiWalletInstalled = () => {
+    if (typeof window === 'undefined') return false;
+    
+    // Wait for window.suiWallet to be injected
+    return new Promise<boolean>((resolve) => {
+      if ((window as any).suiWallet) {
+        resolve(true);
+      } else {
+        // Wait for wallet to be injected
+        let retries = 0;
+        const checkInterval = setInterval(() => {
+          if ((window as any).suiWallet) {
+            clearInterval(checkInterval);
+            resolve(true);
+          }
+          retries++;
+          if (retries > 10) { // Wait for max 5 seconds
+            clearInterval(checkInterval);
+            resolve(false);
+          }
+        }, 500);
+      }
+    });
   };
 
   const connect = async () => {
@@ -71,19 +121,39 @@ export function WalletProvider({ children }: WalletProviderProps) {
 
     try {
       // Check if Sui Wallet is available
-      if (typeof window === 'undefined' || !(window as any).suiWallet) {
-        throw new Error('Sui Wallet not found. Please install Sui Wallet extension.');
+      const isInstalled = await isSuiWalletInstalled();
+      if (!isInstalled) {
+        setState(prev => ({
+          ...prev,
+          isConnecting: false,
+          error: 'wallet_not_installed'
+        }));
+        return;
       }
 
       const wallet = (window as any).suiWallet;
       
-      // Request connection
-      await wallet.requestPermissions();
+      try {
+        // Request connection
+        await wallet.requestPermissions();
+      } catch (permissionError) {
+        setState(prev => ({
+          ...prev,
+          isConnecting: false,
+          error: 'connection_rejected'
+        }));
+        return;
+      }
       
       // Get accounts
       const accounts = await wallet.getAccounts();
       if (accounts.length === 0) {
-        throw new Error('No accounts found in wallet');
+        setState(prev => ({
+          ...prev,
+          isConnecting: false,
+          error: 'no_accounts'
+        }));
+        return;
       }
 
       const address = accounts[0].address;
@@ -141,12 +211,20 @@ export function WalletProvider({ children }: WalletProviderProps) {
 
   const getSuiClient = () => suiClient;
 
+  const getSigner = () => {
+    if (typeof window !== 'undefined' && (window as any).suiWallet) {
+      return (window as any).suiWallet;
+    }
+    return null;
+  };
+
   const value: WalletContextType = {
     ...state,
     connect,
     disconnect,
     refreshBalance,
     getSuiClient,
+    getSigner,
   };
 
   return (

@@ -5,13 +5,16 @@
   "scripts": {
     "dev": "next dev",
     "dev:turbo": "next dev --turbopack",
+    "test": "vitest",
     "build": "next build",
+    "smoke": "ts-node -r tsconfig-paths/register scripts/smoke-publish.ts",
     "start": "next start",
     "lint": "eslint",
     "download-fonts": "node scripts/download-fonts.js"
   },
   "dependencies": {
     "@mysten/dapp-kit": "^0.18.0",
+    "@mysten/seal": "^0.8.0",
     "@mysten/sui.js": "^0.50.0",
     "@mysten/walrus": "^0.1.0",
     "@tailwindcss/forms": "^0.5.6",
@@ -34,13 +37,16 @@
     "@tailwindcss/postcss": "^4",
     "@types/crypto-js": "^4.2.1",
     "@types/fabric": "^5.3.10",
-    "@types/node": "^20",
+    "@types/node": "^20.19.17",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@types/uuid": "^9.0.7",
     "eslint": "^9",
     "eslint-config-next": "15.5.4",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "ts-node": "^10.9.2",
+    "tsconfig-paths": "^4.2.0",
+    "typescript": "^5",
+    "vitest": "^1.0.0"
   }
 }

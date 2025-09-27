@@ -19,13 +19,13 @@ export default function Modal({ isOpen, onClose, title, children, className }: M
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       {/* Backdrop */}
       <div 
-        className="absolute inset-0 bg-black bg-opacity-50"
+        className="absolute inset-0 bg-black bg-opacity-75"
         onClick={onClose}
       />
       
       {/* Modal Content */}
       <div className={cn(
-        "relative bg-white rounded-lg shadow-xl max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto",
+        "relative bg-white rounded-lg shadow-xl max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto p-6",
         className
       )}>
         {/* Header */}
