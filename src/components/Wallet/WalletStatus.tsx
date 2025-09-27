@@ -1,18 +1,31 @@
 'use client';
 
-import React, { useState } from 'react';
-import { Wallet, LogOut, RefreshCw, Copy, Check, ExternalLink } from 'lucide-react';
-import { useWallet } from '@/contexts/WalletContext';
+import React, { useState, useCallback } from 'react';
+import { RefreshCw, Copy, Check, ExternalLink, LogOut } from 'lucide-react';
+import { useCurrentAccount, useCurrentWallet, useSuiClient, useDisconnectWallet, ConnectButton } from '@mysten/dapp-kit';
 import { cn } from '@/utils/helpers';
 
 interface WalletStatusProps {
-  onConnect: () => void;
+  onConnect?: () => void;
 }
 
-export default function WalletStatus({ onConnect }: WalletStatusProps) {
-  const { isConnected, address, balance, disconnect, refreshBalance } = useWallet();
+export default function WalletStatus({ onConnect: _onConnect }: WalletStatusProps) {
+  const currentAccount = useCurrentAccount();
+  const currentWallet = useCurrentWallet();
+  const suiClient = useSuiClient();
+  const [balance, setBalance] = useState('0');
   const [copied, setCopied] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const isConnected = !!currentAccount;
+  const address = currentAccount?.address || null;
+  const walletName = currentWallet && 'name' in currentWallet ? currentWallet.name as string : 'Connected Wallet';
+  const walletType = currentWallet && 'name' in currentWallet ? 
+    (currentWallet.name as string).toLowerCase().includes('slush') ? 'slush' :
+    (currentWallet.name as string).toLowerCase().includes('sui wallet') ? 'sui-wallet' :
+    (currentWallet.name as string).toLowerCase().includes('suiet') ? 'suiet' : 'slush' : null;
+
+  const { mutateAsync: disconnectWallet, isPending: isDisconnecting } = useDisconnectWallet();
 
   const handleCopyAddress = async () => {
     if (!address) return;
@@ -25,6 +38,20 @@ export default function WalletStatus({ onConnect }: WalletStatusProps) {
       console.error('Failed to copy address:', error);
     }
   };
+
+  const refreshBalance = useCallback(async () => {
+    if (!currentAccount?.address) return;
+
+    try {
+      const balanceResult = await suiClient.getBalance({
+        owner: currentAccount.address,
+        coinType: '0x2::sui::SUI',
+      });
+      setBalance(balanceResult.totalBalance);
+    } catch (error) {
+      console.error('Failed to refresh balance:', error);
+    }
+  }, [currentAccount?.address, suiClient]);
 
   const handleRefreshBalance = async () => {
     setIsRefreshing(true);
@@ -52,13 +79,10 @@ export default function WalletStatus({ onConnect }: WalletStatusProps) {
 
   if (!isConnected) {
     return (
-      <button
-        onClick={onConnect}
-        className="flex items-center space-x-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
-      >
-        <Wallet className="w-4 h-4" />
-        <span>Connect Wallet</span>
-      </button>
+      <ConnectButton 
+        connectText="Connect Wallet"
+        className="!bg-blue-600 !text-white !px-4 !py-2 !rounded-lg !font-medium hover:!bg-blue-700 !transition-colors"
+      />
     );
   }
 
@@ -67,7 +91,14 @@ export default function WalletStatus({ onConnect }: WalletStatusProps) {
       {/* Wallet Info */}
       <div className="flex items-center space-x-2 px-3 py-2 bg-green-50 border border-green-200 rounded-lg">
         <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-        <span className="text-sm font-medium text-green-800">Connected</span>
+        <span className="text-sm font-medium text-green-800">
+          {walletName || 'Connected'}
+        </span>
+        {walletType === 'unsafe-burner' && (
+          <span className="text-xs text-orange-600 bg-orange-100 px-2 py-0.5 rounded">
+            Dev
+          </span>
+        )}
       </div>
 
       {/* Address */}
@@ -112,12 +143,13 @@ export default function WalletStatus({ onConnect }: WalletStatusProps) {
 
       {/* Disconnect Button */}
       <button
-        onClick={disconnect}
-        className="flex items-center space-x-1 px-3 py-2 text-sm text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
+        onClick={() => disconnectWallet()}
+        disabled={isDisconnecting}
+        className="flex items-center space-x-2 px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-60"
         title="Disconnect wallet"
       >
         <LogOut className="w-4 h-4" />
-        <span>Disconnect</span>
+        <span>{isDisconnecting ? 'Disconnecting...' : 'Disconnect'}</span>
       </button>
     </div>
   );

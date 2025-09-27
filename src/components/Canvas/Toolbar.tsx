@@ -40,6 +40,7 @@ interface ToolbarProps {
   onSave?: () => void;
   onLoad?: () => void;
   zoom: number;
+  isWalletConnected?: boolean;
 }
 
 export default function Toolbar({
@@ -58,7 +59,8 @@ export default function Toolbar({
   onAIImage,
   onSave,
   onLoad,
-  zoom
+  zoom,
+  isWalletConnected = false
 }: ToolbarProps) {
   const [showColorPicker, setShowColorPicker] = useState(false);
 
@@ -258,10 +260,19 @@ export default function Toolbar({
         <div className="space-y-2">
           <button
             onClick={onSave}
-            className="w-full flex items-center justify-center space-x-2 p-2 text-green-600 bg-green-50 hover:bg-green-100 rounded-lg transition-colors"
+            disabled={!isWalletConnected}
+            className={cn(
+              "w-full flex items-center justify-center space-x-2 p-2 rounded-lg transition-colors",
+              isWalletConnected
+                ? "text-green-600 bg-green-50 hover:bg-green-100"
+                : "text-gray-400 bg-gray-100 cursor-not-allowed"
+            )}
+            title={!isWalletConnected ? "Connect wallet to save designs" : "Save design to Walrus"}
           >
             <Save className="w-4 h-4" />
-            <span className="text-sm">Save to Walrus</span>
+            <span className="text-sm">
+              {isWalletConnected ? "Save to Walrus" : "Connect Wallet to Save"}
+            </span>
           </button>
           
           <button

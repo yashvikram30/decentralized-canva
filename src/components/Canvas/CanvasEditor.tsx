@@ -14,8 +14,8 @@ import { ToastContainer } from '../UI/Toast';
 import { useToast } from '@/hooks/useToast';
 import { cn } from '@/utils/helpers';
 import { initializeFonts } from '@/utils/fontLoader';
-import WalrusTestPanel from '../Testing/WalrusTestPanel';
-import WalletTestPanel from '../Testing/WalletTestPanel';
+import WalletStatus from '../Wallet/WalletStatus';
+import { useCurrentAccount, ConnectButton } from '@mysten/dapp-kit';
 
 interface CanvasEditorProps {
   className?: string;
@@ -27,14 +27,14 @@ export default function CanvasEditor({ className }: CanvasEditorProps) {
   const [showAITextModal, setShowAITextModal] = useState(false);
   const [showAIImageModal, setShowAIImageModal] = useState(false);
   const [showSaveDialog, setShowSaveDialog] = useState(false);
-  const [showWalrusTest, setShowWalrusTest] = useState(false);
-  const [showWalletTest, setShowWalletTest] = useState(false);
   const [encryptionStatus, setEncryptionStatus] = useState<'public' | 'private' | 'team' | 'template'>('public');
   const [isProcessingEncryption, setIsProcessingEncryption] = useState(false);
   const [selectedTool, setSelectedTool] = useState<'select' | 'text' | 'rectangle' | 'circle' | 'image'>('select');
   const [activeAIPanel, setActiveAIPanel] = useState<'text' | 'image' | null>(null);
   
   const { toasts, success, error, removeToast } = useToast();
+  const currentAccount = useCurrentAccount();
+  const isConnected = !!currentAccount;
   
   const {
     canvas,
@@ -172,6 +172,7 @@ export default function CanvasEditor({ className }: CanvasEditorProps) {
             onSave={() => setShowSaveDialog(true)}
             onLoad={() => setShowSaveDialog(true)}
             zoom={zoom}
+            isWalletConnected={isConnected}
           />
           
           <div className="border-t border-gray-200 p-4">
@@ -182,6 +183,7 @@ export default function CanvasEditor({ className }: CanvasEditorProps) {
 
       {/* Main Canvas Area */}
       <div className="flex-1 flex flex-col">
+
         {/* Top Bar */}
         <div className="bg-white p-4 border-b flex justify-between items-center">
           <div className="flex items-center space-x-4">
@@ -193,28 +195,19 @@ export default function CanvasEditor({ className }: CanvasEditorProps) {
             />
           </div>
           
-          <div className="flex items-center space-x-2">
-            <span className="text-sm text-gray-500">Zoom: {Math.round(zoom * 100)}%</span>
-            <button
-              onClick={() => setZoom(1)}
-              className="px-3 py-1 text-sm bg-gray-100 hover:bg-gray-200 rounded"
-            >
-              Reset Zoom
-            </button>
+          <div className="flex items-center space-x-4">
+            {/* Wallet Status */}
+            <WalletStatus onConnect={() => {}} />
             
-            {/* Test Buttons */}
-            <button
-              onClick={() => setShowWalrusTest(true)}
-              className="px-3 py-1 text-sm bg-blue-100 text-blue-700 hover:bg-blue-200 rounded"
-            >
-              Test Walrus
-            </button>
-            <button
-              onClick={() => setShowWalletTest(true)}
-              className="px-3 py-1 text-sm bg-green-100 text-green-700 hover:bg-green-200 rounded"
-            >
-              Test Wallet
-            </button>
+            <div className="flex items-center space-x-2">
+              <span className="text-sm text-gray-500">Zoom: {Math.round(zoom * 100)}%</span>
+              <button
+                onClick={() => setZoom(1)}
+                className="px-3 py-1 text-sm bg-gray-100 hover:bg-gray-200 rounded"
+              >
+                Reset Zoom
+              </button>
+            </div>
           </div>
         </div>
         
@@ -278,16 +271,8 @@ export default function CanvasEditor({ className }: CanvasEditorProps) {
         onLoad={loadCanvas}
       />
 
-      {/* Test Panels */}
-      <WalrusTestPanel
-        isOpen={showWalrusTest}
-        onClose={() => setShowWalrusTest(false)}
-      />
-      
-      <WalletTestPanel
-        isOpen={showWalletTest}
-        onClose={() => setShowWalletTest(false)}
-      />
+
+      {/* Test Panels removed per request */}
 
       {/* Toast Notifications */}
       <ToastContainer toasts={toasts} onClose={removeToast} />

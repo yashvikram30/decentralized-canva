@@ -5,7 +5,7 @@ import { fabric } from '@/lib/fabric';
 import { Save, Loader2, Copy, Check, X, AlertCircle, Wallet } from 'lucide-react';
 import { cn } from '@/utils/helpers';
 import { useWalrus } from '@/hooks/useWalrus';
-import { useWallet } from '@/contexts/WalletContext';
+import { useCurrentAccount, useCurrentWallet, useSuiClient, useSignAndExecuteTransaction } from '@mysten/dapp-kit';
 import { suiSignerService } from '@/services/suiSigner';
 import WalletModal from '@/components/Wallet/WalletModal';
 
@@ -27,7 +27,30 @@ export default function SaveDialog({ isOpen, onClose, canvas, onLoad }: SaveDial
   const [showWalletModal, setShowWalletModal] = useState(false);
 
   const { store, retrieve, isStoring, isRetrieving, error: walrusError } = useWalrus();
-  const { isConnected, address, getSuiClient } = useWallet();
+  const currentAccount = useCurrentAccount();
+  const currentWallet = useCurrentWallet();
+  const suiClient = useSuiClient();
+  const { mutateAsync: signAndExecuteTransaction } = useSignAndExecuteTransaction();
+
+  const isConnected = !!currentAccount;
+  const address = currentAccount?.address || null;
+  const walletName = currentWallet && 'name' in currentWallet ? currentWallet.name as string : 'Connected Wallet';
+  const walletType = currentWallet && 'name' in currentWallet ? 
+    (currentWallet.name as string).toLowerCase().includes('slush') ? 'slush' :
+    (currentWallet.name as string).toLowerCase().includes('sui wallet') ? 'sui-wallet' :
+    (currentWallet.name as string).toLowerCase().includes('suiet') ? 'suiet' : 'slush' : null;
+
+  const getSuiClient = () => suiClient as any;
+  const signTransaction = async (transactionBlock: any) => {
+    if (!currentAccount) {
+      throw new Error('Wallet not connected');
+    }
+    return await signAndExecuteTransaction({
+      transaction: transactionBlock,
+      account: currentAccount,
+      chain: 'sui:testnet', // or mainnet based on config
+    });
+  };
 
   const generateBlobId = () => {
     const timestamp = Date.now().toString(36);
@@ -50,11 +73,21 @@ export default function SaveDialog({ isOpen, onClose, canvas, onLoad }: SaveDial
       // Create a signer from the connected wallet
       const suiClient = getSuiClient();
       
-      // For now, we'll use the suiSignerService but with wallet integration
-      // In a full implementation, you'd create a signer from the wallet
-      if (!suiSignerService.hasSigner()) {
-        // This is a fallback - in production, you'd get the signer from the wallet
-        suiSignerService.generateKeypair();
+      // For production wallets, we need to create a signer that can sign transactions
+      // For now, we'll use the suiSignerService as a fallback for development
+      if (walletType === 'unsafe-burner') {
+        // For unsafe burner, generate a new keypair
+        if (!suiSignerService.hasSigner()) {
+          suiSignerService.generateKeypair();
+        }
+      } else {
+        // For real wallets, we need to create a signer that can work with the wallet
+        // This is a simplified approach - in production you'd use proper wallet adapters
+        if (!suiSignerService.hasSigner()) {
+          // Generate a temporary keypair for this session
+          // In production, this would be replaced with proper wallet integration
+          suiSignerService.generateKeypair();
+        }
       }
 
       const signer = suiSignerService.getSigner();
@@ -71,6 +104,8 @@ export default function SaveDialog({ isOpen, onClose, canvas, onLoad }: SaveDial
           created: new Date().toISOString(),
           encrypted: isEncrypted,
           walletAddress: address,
+          walletName: walletName,
+          walletType: walletType,
         }
       };
       
@@ -125,15 +160,15 @@ export default function SaveDialog({ isOpen, onClose, canvas, onLoad }: SaveDial
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
       {/* Backdrop */}
       <div 
-        className="absolute inset-0 bg-black bg-opacity-50"
+        className="absolute inset-0 bg-black bg-opacity-100"
         onClick={onClose}
       />
       
       {/* Modal Content */}
-      <div className="relative bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+      <div className="relative bg-white rounded-xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto z-[10000]">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
           <div className="flex items-center space-x-3">
@@ -214,7 +249,7 @@ export default function SaveDialog({ isOpen, onClose, canvas, onLoad }: SaveDial
                 <span className="font-medium text-green-800">Wallet Connected</span>
               </div>
               <p className="mt-1 text-sm text-green-700">
-                Connected as: {address?.slice(0, 6)}...{address?.slice(-4)}
+                Connected as: {address?.slice(0, 6)}...{address?.slice(-4)} ({walletName})
               </p>
             </div>
           )}

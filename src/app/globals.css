@@ -2,6 +2,8 @@
 @tailwind components;
 @tailwind utilities;
 
+/* dApp Kit CSS will be imported in layout.tsx */
+
 /* Import font definitions */
 @import '../styles/fonts.css';
 

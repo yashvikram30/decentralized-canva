@@ -2,11 +2,12 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { fabric } from '@/lib/fabric';
-import { Download, Upload, Save, Settings, Image, Link } from 'lucide-react';
+import { Download, Upload, Save, Settings, Image, Link, Wallet, Copy, ExternalLink, RefreshCw, CheckCircle } from 'lucide-react';
 import { cn } from '@/utils/helpers';
 import { updateTextFontFamily, AVAILABLE_FONTS, initializeFonts } from '@/utils/fontLoader';
 import AITextModal from '../AI/AITextModal';
 import AIImageModal from '../AI/AIImageModal';
+import { useCurrentAccount, useCurrentWallet, useSuiClient } from '@mysten/dapp-kit';
 
 interface PropertyPanelProps {
   canvas: fabric.Canvas | null;
@@ -27,9 +28,26 @@ export default function PropertyPanel({
   activeAIPanel = null,
   onCloseAIPanel
 }: PropertyPanelProps) {
+  const currentAccount = useCurrentAccount();
+  const currentWallet = useCurrentWallet();
+  const suiClient = useSuiClient();
+  
+  const isConnected = !!currentAccount;
+  const address = currentAccount?.address || null;
+  const walletName = currentWallet && 'name' in currentWallet ? currentWallet.name as string : 'Connected Wallet';
+  const walletType = currentWallet && 'name' in currentWallet ? 
+    (currentWallet.name as string).toLowerCase().includes('slush') ? 'slush' :
+    (currentWallet.name as string).toLowerCase().includes('sui wallet') ? 'sui-wallet' :
+    (currentWallet.name as string).toLowerCase().includes('suiet') ? 'suiet' : 'slush' : null;
+  const balance = '0'; // We'll implement balance fetching if needed
+  
+  // Debug logging
+  console.log('PropertyPanel - Wallet state:', { isConnected, address, balance, walletName, walletType });
   const [selectedObject, setSelectedObject] = useState<fabric.Object | null>(null);
   const [imageUrl, setImageUrl] = useState('');
   const [isUploading, setIsUploading] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [properties, setProperties] = useState({
     fill: '#000000',
     stroke: '#000000',
@@ -54,6 +72,44 @@ export default function PropertyPanel({
 
   // Debounce timer ref
   const debounceTimer = useRef<NodeJS.Timeout | null>(null);
+
+  // Wallet helper functions
+  const handleCopyAddress = async () => {
+    if (!address) return;
+    
+    try {
+      await navigator.clipboard.writeText(address);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (error) {
+      console.error('Failed to copy address:', error);
+    }
+  };
+
+  const handleRefreshBalance = async () => {
+    setIsRefreshing(true);
+    try {
+      // Balance refresh removed - dApp Kit handles this automatically
+      console.log('Balance refresh requested');
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
+  const formatAddress = (addr: string) => {
+    return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
+  };
+
+  const formatBalance = (bal: string) => {
+    const balance = parseFloat(bal) / 1e9; // Convert from MIST to SUI
+    return balance.toFixed(4);
+  };
+
+  const handleViewOnExplorer = () => {
+    if (!address) return;
+    const explorerUrl = `https://suiexplorer.com/address/${address}?network=testnet`;
+    window.open(explorerUrl, '_blank');
+  };
 
   useEffect(() => {
     if (selectedObjects.length === 1) {
@@ -358,6 +414,108 @@ export default function PropertyPanel({
       </div>
 
       <div className="flex-1 overflow-y-auto w-full">
+        {/* Wallet Information Section */}
+        <div className="p-4 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-purple-50">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-medium text-gray-700 flex items-center space-x-2">
+              <Wallet className="w-4 h-4 text-blue-600" />
+              <span>{isConnected ? 'Wallet Connected' : 'Wallet Status'}</span>
+            </h3>
+            {isConnected && (
+              <button
+                onClick={() => {}} // Disconnect handled by dApp Kit ConnectButton
+                className="text-xs text-red-600 hover:text-red-800 font-medium"
+              >
+                Disconnect
+              </button>
+            )}
+          </div>
+          
+          {isConnected ? (
+            <div className="space-y-3">
+              {/* Wallet Name and Type */}
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-900">{walletName}</p>
+                  <p className="text-xs text-gray-500 capitalize">{walletType?.replace('-', ' ')}</p>
+                </div>
+                <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+                  <Wallet className="w-4 h-4 text-white" />
+                </div>
+              </div>
+
+              {/* Address */}
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Address</label>
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="text"
+                    value={address || ''}
+                    readOnly
+                    className="flex-1 px-2 py-1 text-xs bg-white border border-gray-300 rounded font-mono"
+                  />
+                  <button
+                    onClick={handleCopyAddress}
+                    className="p-1 text-gray-400 hover:text-gray-600 transition-colors"
+                    title="Copy address"
+                  >
+                    {copied ? (
+                      <CheckCircle className="w-4 h-4 text-green-600" />
+                    ) : (
+                      <Copy className="w-4 h-4" />
+                    )}
+                  </button>
+                  <button
+                    onClick={handleViewOnExplorer}
+                    className="p-1 text-gray-400 hover:text-gray-600 transition-colors"
+                    title="View on explorer"
+                  >
+                    <ExternalLink className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Balance */}
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Balance</label>
+                <div className="flex items-center space-x-2">
+                  <span className="text-sm font-mono text-gray-900">
+                    {formatBalance(balance)} SUI
+                  </span>
+                  <button
+                    onClick={handleRefreshBalance}
+                    disabled={isRefreshing}
+                    className="p-1 text-gray-400 hover:text-gray-600 transition-colors disabled:opacity-50"
+                    title="Refresh balance"
+                  >
+                    <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Connection Status */}
+              <div className="flex items-center space-x-2 text-xs">
+                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                <span className="text-green-700 font-medium">Connected</span>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <div className="text-center py-4">
+                <Wallet className="w-8 h-8 text-gray-400 mx-auto mb-2" />
+                <p className="text-sm text-gray-600 mb-2">No wallet connected</p>
+                <p className="text-xs text-gray-500 mb-3">Connect a wallet to view details here</p>
+                <button
+                  onClick={() => {}} // Connect handled by dApp Kit ConnectButton
+                  className="px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+                >
+                  Test Connect (Burner)
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+
         {/* Show AI panels when active */}
         {activeAIPanel === 'text' ? (
           <div className="h-full w-full">

@@ -3,7 +3,6 @@
 import React, { useState } from 'react';
 import { Shield, Save, Download, Share2, Settings } from 'lucide-react';
 import { cn } from '@/utils/helpers';
-import { useWallet } from '@/contexts/WalletContext';
 import WalletStatus from '@/components/Wallet/WalletStatus';
 import WalletModal from '@/components/Wallet/WalletModal';
 
@@ -59,15 +58,15 @@ export default function Header({
           <div className="flex items-center space-x-2">
             <button
               onClick={onSave}
-              className="flex items-center space-x-2 px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="flex items-center space-x-2 px-4 py-2 text-sm font-medium text-white bg-green-600 border border-transparent rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 shadow-sm"
             >
               <Save className="w-4 h-4" />
-              <span>Save</span>
+              <span>Save to Walrus</span>
             </button>
 
             <button
               onClick={onDownload}
-              className="flex items-center space-x-2 px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="flex items-center space-x-2 px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <Download className="w-4 h-4" />
               <span>Download</span>
@@ -75,7 +74,7 @@ export default function Header({
 
             <button
               onClick={onShare}
-              className="flex items-center space-x-2 px-3 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="flex items-center space-x-2 px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <Share2 className="w-4 h-4" />
               <span>Share</span>
@@ -83,7 +82,7 @@ export default function Header({
 
             <button
               onClick={onSettings}
-              className="p-2 text-gray-400 hover:text-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded-md"
+              className="p-2 text-gray-400 hover:text-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded-lg"
             >
               <Settings className="w-5 h-5" />
             </button>
