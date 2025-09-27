@@ -7,6 +7,7 @@ import { cn } from '@/utils/helpers';
 import { updateTextFontFamily, AVAILABLE_FONTS, initializeFonts } from '@/utils/fontLoader';
 import AITextModal from '../AI/AITextModal';
 import AIImageModal from '../AI/AIImageModal';
+import WalrusPopup from '../Storage/WalrusPopup';
 import { useCurrentAccount, useCurrentWallet, useSuiClient } from '@mysten/dapp-kit';
 
 interface PropertyPanelProps {
@@ -17,6 +18,8 @@ interface PropertyPanelProps {
   selectedTool?: 'select' | 'text' | 'rectangle' | 'circle' | 'image';
   activeAIPanel?: 'text' | 'image' | null;
   onCloseAIPanel?: () => void;
+  onLoad?: (designData: any) => void;
+  onWalrusActionRef?: React.MutableRefObject<((action: 'save' | 'load') => void) | null>;
 }
 
 export default function PropertyPanel({ 
@@ -26,7 +29,9 @@ export default function PropertyPanel({
   onAddImage,
   selectedTool = 'select',
   activeAIPanel = null,
-  onCloseAIPanel
+  onCloseAIPanel,
+  onLoad,
+  onWalrusActionRef
 }: PropertyPanelProps) {
   const currentAccount = useCurrentAccount();
   const currentWallet = useCurrentWallet();
@@ -48,6 +53,8 @@ export default function PropertyPanel({
   const [isUploading, setIsUploading] = useState(false);
   const [copied, setCopied] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [showWalrusPopup, setShowWalrusPopup] = useState(false);
+  const [walrusPopupMode, setWalrusPopupMode] = useState<'save' | 'load'>('save');
   const [properties, setProperties] = useState({
     fill: '#000000',
     stroke: '#000000',
@@ -149,6 +156,21 @@ export default function PropertyPanel({
       }
     };
   }, []);
+
+  // Expose Walrus action handler via ref
+  const walrusActionRef = useRef<((action: 'save' | 'load') => void) | null>(null);
+  
+  useEffect(() => {
+    walrusActionRef.current = (action: 'save' | 'load') => {
+      setWalrusPopupMode(action);
+      setShowWalrusPopup(true);
+    };
+    
+    // Assign to parent ref if provided
+    if (onWalrusActionRef) {
+      onWalrusActionRef.current = walrusActionRef.current;
+    }
+  }, [onWalrusActionRef]);
 
   // Debounced update function for properties that need smooth updates
   const debouncedUpdateProperty = useCallback((key: string, value: any) => {
@@ -407,13 +429,13 @@ export default function PropertyPanel({
   };
 
   return (
-    <div className="h-full flex flex-col w-full">
+    <div className="h-full flex flex-col w-full min-w-0 max-w-full">
       {/* Header */}
-      <div className="p-4 border-b border-gray-200 flex-shrink-0">
+      <div className="p-4 border-b border-gray-200 flex-shrink-0 min-w-0">
         <h2 className="text-lg font-semibold text-gray-900">Properties</h2>
       </div>
 
-      <div className="flex-1 overflow-y-auto w-full">
+      <div className="flex-1 overflow-y-auto w-full min-w-0 max-w-full">
         {/* Wallet Information Section */}
         <div className="p-4 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-purple-50">
           <div className="flex items-center justify-between mb-3">
@@ -514,6 +536,49 @@ export default function PropertyPanel({
               </div>
             </div>
           )}
+        </div>
+
+        {/* Walrus Storage Section */}
+        <div className="p-4 border-b border-gray-200 bg-gradient-to-r from-green-50 to-blue-50">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-medium text-gray-700 flex items-center space-x-2">
+              <Save className="w-4 h-4 text-green-600" />
+              <span>Walrus Storage</span>
+            </h3>
+          </div>
+          
+          <div className="space-y-2">
+            <button
+              onClick={() => {
+                setWalrusPopupMode('save');
+                setShowWalrusPopup(true);
+              }}
+              disabled={!isConnected}
+              className={cn(
+                "w-full flex items-center justify-center space-x-2 p-2 rounded-lg transition-colors text-sm",
+                isConnected
+                  ? "text-green-600 bg-green-50 hover:bg-green-100"
+                  : "text-gray-400 bg-gray-100 cursor-not-allowed"
+              )}
+              title={!isConnected ? "Connect wallet to save designs" : "Save design to Walrus"}
+            >
+              <Save className="w-4 h-4" />
+              <span>
+                {isConnected ? "Save to Walrus" : "Connect Wallet to Save"}
+              </span>
+            </button>
+            
+            <button
+              onClick={() => {
+                setWalrusPopupMode('load');
+                setShowWalrusPopup(true);
+              }}
+              className="w-full flex items-center justify-center space-x-2 p-2 text-purple-600 bg-purple-50 hover:bg-purple-100 rounded-lg transition-colors text-sm"
+            >
+              <Upload className="w-4 h-4" />
+              <span>Load from Walrus</span>
+            </button>
+          </div>
         </div>
 
         {/* Show AI panels when active */}
@@ -627,53 +692,66 @@ export default function PropertyPanel({
         ) : (
           /* Default content for other tools */
           <>
-            {/* Export/Import */}
-            <div className="p-4 border-b border-gray-200">
-              <h3 className="text-sm font-medium text-gray-700 mb-3">Export/Import</h3>
-              <div className="space-y-2">
-                <div className="grid grid-cols-3 gap-2">
-                  <button
-                    onClick={() => handleExport('png')}
-                    className="flex items-center justify-center space-x-1 p-2 text-sm bg-blue-50 text-blue-600 rounded hover:bg-blue-100"
-                  >
-                    <Download className="w-4 h-4" />
-                    <span>PNG</span>
-                  </button>
-                  <button
-                    onClick={() => handleExport('svg')}
-                    className="flex items-center justify-center space-x-1 p-2 text-sm bg-green-50 text-green-600 rounded hover:bg-green-100"
-                  >
-                    <Download className="w-4 h-4" />
-                    <span>SVG</span>
-                  </button>
-                  <button
-                    onClick={() => handleExport('json')}
-                    className="flex items-center justify-center space-x-1 p-2 text-sm bg-purple-50 text-purple-600 rounded hover:bg-purple-100"
-                  >
-                    <Download className="w-4 h-4" />
-                    <span>JSON</span>
-                  </button>
-                </div>
-                
-                <label className="block">
-                  <input
-                    type="file"
-                    accept=".json"
-                    onChange={handleImport}
-                    className="hidden"
-                  />
-                  <div className="flex items-center justify-center space-x-1 p-2 text-sm bg-gray-50 text-gray-600 rounded hover:bg-gray-100 cursor-pointer">
-                    <Upload className="w-4 h-4" />
-                    <span>Import JSON</span>
-                  </div>
-                </label>
+            {/* Show Walrus popup as main content when open */}
+            {showWalrusPopup ? (
+              <div className="h-full w-full min-w-0 max-w-full">
+                <WalrusPopup
+                  isOpen={showWalrusPopup}
+                  onClose={() => setShowWalrusPopup(false)}
+                  canvas={canvas}
+                  onLoad={onLoad}
+                  mode={walrusPopupMode}
+                />
               </div>
-            </div>
+            ) : (
+              <>
+                {/* Export/Import */}
+                <div className="p-4 border-b border-gray-200">
+                  <h3 className="text-sm font-medium text-gray-700 mb-3">Export/Import</h3>
+                  <div className="space-y-2">
+                    <div className="grid grid-cols-3 gap-2">
+                      <button
+                        onClick={() => handleExport('png')}
+                        className="flex items-center justify-center space-x-1 p-2 text-sm bg-blue-50 text-blue-600 rounded hover:bg-blue-100"
+                      >
+                        <Download className="w-4 h-4" />
+                        <span>PNG</span>
+                      </button>
+                      <button
+                        onClick={() => handleExport('svg')}
+                        className="flex items-center justify-center space-x-1 p-2 text-sm bg-green-50 text-green-600 rounded hover:bg-green-100"
+                      >
+                        <Download className="w-4 h-4" />
+                        <span>SVG</span>
+                      </button>
+                      <button
+                        onClick={() => handleExport('json')}
+                        className="flex items-center justify-center space-x-1 p-2 text-sm bg-purple-50 text-purple-600 rounded hover:bg-purple-100"
+                      >
+                        <Download className="w-4 h-4" />
+                        <span>JSON</span>
+                      </button>
+                    </div>
+                    
+                    <label className="block">
+                      <input
+                        type="file"
+                        accept=".json"
+                        onChange={handleImport}
+                        className="hidden"
+                      />
+                      <div className="flex items-center justify-center space-x-1 p-2 text-sm bg-gray-50 text-gray-600 rounded hover:bg-gray-100 cursor-pointer">
+                        <Upload className="w-4 h-4" />
+                        <span>Import JSON</span>
+                      </div>
+                    </label>
+                  </div>
+                </div>
 
-            {/* Object Properties */}
-            {selectedObject ? (
-          <div className="p-4 space-y-4">
-            <h3 className="text-sm font-medium text-gray-700">Object Properties</h3>
+                {/* Object Properties */}
+                {selectedObject ? (
+              <div className="p-4 space-y-4">
+                <h3 className="text-sm font-medium text-gray-700">Object Properties</h3>
             
             {/* Text Properties - Only show for text objects */}
             {(selectedObject.type === 'text' || selectedObject.type === 'textbox') && (
@@ -946,30 +1024,32 @@ export default function PropertyPanel({
           </div>
         )}
 
-        {/* Canvas Info */}
-        <div className="p-4 border-t border-gray-200">
-          <h3 className="text-sm font-medium text-gray-700 mb-2">Canvas Info</h3>
-          <div className="text-xs text-gray-600 space-y-1">
-            <div>Objects: {canvas?.getObjects().length || 0}</div>
-            <div>Selected: {selectedObjects.length}</div>
-            <div>Size: {canvas?.getWidth()} × {canvas?.getHeight()}</div>
-          </div>
-          <div className="mt-2 space-y-1">
-            <button
-              onClick={debugCanvasState}
-              className="w-full px-2 py-1 text-xs bg-yellow-100 text-yellow-800 rounded hover:bg-yellow-200"
-            >
-              Debug Canvas State
-            </button>
-            <button
-              onClick={ensureObjectsVisible}
-              className="w-full px-2 py-1 text-xs bg-green-100 text-green-800 rounded hover:bg-green-200"
-            >
-              Force Objects Visible
-            </button>
-          </div>
-        </div>
-        </>
+                {/* Canvas Info */}
+                <div className="p-4 border-t border-gray-200">
+                  <h3 className="text-sm font-medium text-gray-700 mb-2">Canvas Info</h3>
+                  <div className="text-xs text-gray-600 space-y-1">
+                    <div>Objects: {canvas?.getObjects().length || 0}</div>
+                    <div>Selected: {selectedObjects.length}</div>
+                    <div>Size: {canvas?.getWidth()} × {canvas?.getHeight()}</div>
+                  </div>
+                  <div className="mt-2 space-y-1">
+                    <button
+                      onClick={debugCanvasState}
+                      className="w-full px-2 py-1 text-xs bg-yellow-100 text-yellow-800 rounded hover:bg-yellow-200"
+                    >
+                      Debug Canvas State
+                    </button>
+                    <button
+                      onClick={ensureObjectsVisible}
+                      className="w-full px-2 py-1 text-xs bg-green-100 text-green-800 rounded hover:bg-green-200"
+                    >
+                      Force Objects Visible
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
+          </>
         )}
       </div>
     </div>

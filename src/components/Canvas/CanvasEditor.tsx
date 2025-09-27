@@ -24,6 +24,7 @@ interface CanvasEditorProps {
 export default function CanvasEditor({ className }: CanvasEditorProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasContainerRef = useRef<HTMLDivElement>(null);
+  const walrusActionRef = useRef<((action: 'save' | 'load') => void) | null>(null);
   const [showAITextModal, setShowAITextModal] = useState(false);
   const [showAIImageModal, setShowAIImageModal] = useState(false);
   const [showSaveDialog, setShowSaveDialog] = useState(false);
@@ -169,8 +170,8 @@ export default function CanvasEditor({ className }: CanvasEditorProps) {
             onSetTool={setSelectedTool}
             onAIText={() => setActiveAIPanel('text')}
             onAIImage={() => setActiveAIPanel('image')}
-            onSave={() => setShowSaveDialog(true)}
-            onLoad={() => setShowSaveDialog(true)}
+            onSave={() => walrusActionRef.current?.('save')}
+            onLoad={() => walrusActionRef.current?.('load')}
             zoom={zoom}
             isWalletConnected={isConnected}
           />
@@ -238,7 +239,7 @@ export default function CanvasEditor({ className }: CanvasEditorProps) {
       </div>
 
       {/* Right Sidebar - Properties */}
-      <div className="w-80 bg-white shadow-lg">
+      <div className="w-80 bg-white shadow-lg flex-shrink-0 min-w-80 max-w-80">
         <PropertyPanel 
           canvas={canvas}
           selectedObjects={selectedObjects}
@@ -247,6 +248,8 @@ export default function CanvasEditor({ className }: CanvasEditorProps) {
           selectedTool={selectedTool}
           activeAIPanel={activeAIPanel}
           onCloseAIPanel={() => setActiveAIPanel(null)}
+          onLoad={loadCanvas}
+          onWalrusActionRef={walrusActionRef}
         />
       </div>
 
