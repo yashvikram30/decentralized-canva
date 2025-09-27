@@ -1,5 +1,6 @@
 import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
 import { SuiClient } from '@mysten/sui/client';
+import { getFaucetHost, requestSuiFromFaucetV0 } from '@mysten/sui/faucet';
 import { config } from '@/config/environment';
 import type { Signer } from '@mysten/sui/cryptography';
 
@@ -131,34 +132,49 @@ export class SuiSignerService {
     }
 
     const address = this.keypair.getPublicKey().toSuiAddress();
-    
+
+    // If we already have balance, skip
     try {
-      // Use direct HTTP request to faucet API (recommended for newer Sui.js versions)
-      const faucetUrl = config.suiNetwork === 'testnet' 
-        ? 'https://faucet.testnet.sui.io/gas'
-        : 'https://faucet.devnet.sui.io/gas';
-      
-      const response = await fetch(faucetUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          FixedAmountRequest: {
-            recipient: address
-          }
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error(`Faucet request failed: ${response.statusText}`);
+      const { hasBalance } = await this.checkBalance();
+      if (hasBalance) {
+        return;
       }
+    } catch {}
 
-      console.log('✅ SUI requested from faucet');
-    } catch (error) {
-      console.error('❌ Faucet request failed:', error);
-      throw error;
+    const host = getFaucetHost('testnet');
+
+    // Try official faucet helper first
+    try {
+      await requestSuiFromFaucetV0({ host, recipient: address });
+    } catch (firstError) {
+      console.warn('Primary faucet helper failed, trying direct POST…', firstError);
+      try {
+        const url = `${host}/v1/gas`;
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ FixedAmountRequest: { recipient: address } })
+        });
+        if (!response.ok) {
+          throw new Error(`${response.status} ${response.statusText}`);
+        }
+      } catch (secondError) {
+        console.error('❌ Faucet request failed:', secondError);
+        const { hasBalance } = await this.checkBalance();
+        if (!hasBalance) {
+          throw new Error(`Could not fund testnet address via faucet. Please visit https://faucet.testnet.sui.io and fund address ${address}.`);
+        }
+        return;
+      }
     }
+
+    // Give the faucet a moment and verify balance
+    await new Promise((r) => setTimeout(r, 2500));
+    const { hasBalance } = await this.checkBalance();
+    if (!hasBalance) {
+      throw new Error(`Faucet request sent but funds not confirmed yet. Retry in a few seconds or fund manually at https://faucet.testnet.sui.io (address: ${address}).`);
+    }
+    console.log('✅ SUI requested from faucet');
   }
 }
 

@@ -20,12 +20,28 @@ export default function SaveDialog({ isOpen, onClose, canvas, onLoad }: SaveDial
   const [isEncrypted, setIsEncrypted] = useState(false);
   const [savedBlobId, setSavedBlobId] = useState('');
   const [loadBlobId, setLoadBlobId] = useState('');
+  const [batchBlobIds, setBatchBlobIds] = useState('');
+  const [loadedDesigns, setLoadedDesigns] = useState<any[]>([]);
   const [copied, setCopied] = useState(false);
-  const [activeTab, setActiveTab] = useState<'save' | 'load'>('save');
+  const [activeTab, setActiveTab] = useState<'save' | 'load' | 'batch'>('save');
   const [error, setError] = useState<string | null>(null);
   const [showWalletModal, setShowWalletModal] = useState(false);
 
-  const { store, retrieve, isStoring, isRetrieving, isEncrypting, isDecrypting, error: walrusError } = useWalrus();
+  const { 
+    store, 
+    retrieve, 
+    retrieveMultiple, 
+    retrieveDesignWithAssets, 
+    storeDesignWithAssets,
+    testBlobId,
+    isStoring, 
+    isRetrieving, 
+    isBatchLoading,
+    isLoadingWithAssets,
+    isEncrypting, 
+    isDecrypting, 
+    error: walrusError 
+  } = useWalrus();
   const walletService = useWalletService();
 
   const isConnected = walletService.isConnected;
@@ -55,10 +71,8 @@ export default function SaveDialog({ isOpen, onClose, canvas, onLoad }: SaveDial
         throw new Error('Wallet not connected. Please connect your wallet first.');
       }
 
-      // Check if wallet supports at least basic transaction signing
-      if (!walletService.canSignTransaction) {
-        throw new Error('Your wallet does not support transaction signing. Please try a different wallet.');
-      }
+      // Use the wallet service directly; it now exposes both legacy and *Block aliases
+      const signerToUse: any = walletService;
 
       // Log the wallet address being used for Walrus operations
       console.log('Using connected wallet for Walrus operations:', address);
@@ -83,19 +97,10 @@ export default function SaveDialog({ isOpen, onClose, canvas, onLoad }: SaveDial
         }
       };
       
-      // Create a signer-compatible object for Walrus
-      const walrusSigner = {
-        getAddress: () => address!,
-        toSuiAddress: () => address!,
-        signPersonalMessage: walletService.signPersonalMessage,
-        signTransaction: walletService.signTransaction,
-        signAndExecuteTransaction: walletService.signAndExecuteTransaction,
-      };
-
       // Store to Walrus with encryption if enabled
       const result = await store(
         designToStore, 
-        walrusSigner as any, // Type assertion for Walrus compatibility
+        signerToUse,
         1, // epochs (reduced for lower WAL requirement)
         { 'app': 'decentralized-canva', 'type': 'design' },
         address || undefined // userAddress for encryption
@@ -122,6 +127,41 @@ export default function SaveDialog({ isOpen, onClose, canvas, onLoad }: SaveDial
     setError(null);
     
     try {
+      // Basic format validation first (no network call)
+      if (loadBlobId.length < 10) {
+        setError('Blob ID too short. Please check your blob ID.');
+        return;
+      }
+      
+      // Check for common blob ID patterns (hex or base64-like)
+      const isHex = /^[a-f0-9]+$/i.test(loadBlobId);
+      const isBase64Like = /^[a-zA-Z0-9+/=_-]+$/.test(loadBlobId);
+      
+      if (!isHex && !isBase64Like) {
+        setError('Invalid blob ID format. Expected hexadecimal or base64-like format.');
+        return;
+      }
+      
+      // Try to test blob ID, but don't block if there are network issues
+      try {
+        console.log('🧪 Testing blob ID before loading...');
+        const testResult = await testBlobId(loadBlobId);
+        
+        if (!testResult.valid && !testResult.networkError) {
+          setError(`Invalid blob ID: ${testResult.error}`);
+          return;
+        }
+        
+        if (testResult.networkError) {
+          console.warn('⚠️ Network error during validation, proceeding anyway...');
+        } else {
+          console.log('✅ Blob ID is valid, proceeding with load...');
+        }
+      } catch (testError) {
+        console.warn('⚠️ Blob ID test failed, proceeding anyway:', testError);
+        // Continue with loading even if test fails
+      }
+      
       // Load from Walrus with decryption if needed
       const result = await retrieve(loadBlobId, address || undefined);
       onLoad?.(result.data.designData);
@@ -134,6 +174,42 @@ export default function SaveDialog({ isOpen, onClose, canvas, onLoad }: SaveDial
       console.error('Load failed:', error);
       setError(error instanceof Error ? error.message : 'Load failed');
     }
+  };
+
+  const handleBatchLoad = async () => {
+    if (!batchBlobIds.trim()) return;
+    
+    setError(null);
+    
+    try {
+      // Parse blob IDs (comma-separated or newline-separated)
+      const blobIdList = batchBlobIds
+        .split(/[,\n]/)
+        .map(id => id.trim())
+        .filter(id => id.length > 0);
+      
+      if (blobIdList.length === 0) {
+        setError('Please enter at least one blob ID');
+        return;
+      }
+      
+      // Batch load from Walrus
+      const results = await retrieveMultiple(blobIdList, address || undefined);
+      setLoadedDesigns(results);
+      
+      console.log('✅ Batch loaded designs:', results.length);
+      
+    } catch (error) {
+      console.error('Batch load failed:', error);
+      setError(error instanceof Error ? error.message : 'Batch load failed');
+    }
+  };
+
+  const handleLoadDesign = (designData: any) => {
+    onLoad?.(designData);
+    onClose();
+    setLoadedDesigns([]);
+    setBatchBlobIds('');
   };
 
   const handleCopyBlobId = async () => {
@@ -200,6 +276,17 @@ export default function SaveDialog({ isOpen, onClose, canvas, onLoad }: SaveDial
             )}
           >
             Load Design
+          </button>
+          <button
+            onClick={() => setActiveTab('batch')}
+            className={cn(
+              "flex-1 px-4 py-3 text-sm font-medium transition-colors",
+              activeTab === 'batch'
+                ? "text-blue-600 border-b-2 border-blue-600 bg-blue-50"
+                : "text-gray-500 hover:text-gray-700"
+            )}
+          >
+            Batch Load
           </button>
         </div>
         
@@ -348,7 +435,7 @@ export default function SaveDialog({ isOpen, onClose, canvas, onLoad }: SaveDial
                 </>
               )}
             </div>
-          ) : (
+          ) : activeTab === 'load' ? (
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -386,7 +473,78 @@ export default function SaveDialog({ isOpen, onClose, canvas, onLoad }: SaveDial
                 </span>
               </button>
             </div>
-          )}
+          ) : activeTab === 'batch' ? (
+            <div className="space-y-4">
+              {/* Batch Load Results */}
+              {loadedDesigns.length > 0 && (
+                <div className="space-y-3">
+                  <h3 className="text-lg font-medium text-gray-900">Loaded Designs ({loadedDesigns.length})</h3>
+                  <div className="max-h-60 overflow-y-auto space-y-2">
+                    {loadedDesigns.map((result, index) => (
+                      <div key={index} className="p-3 bg-gray-50 border border-gray-200 rounded-lg">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="font-medium text-gray-900">
+                              {result.data.metadata.name || `Design ${index + 1}`}
+                            </p>
+                            <p className="text-sm text-gray-500">
+                              {result.data.metadata.type} • {new Date(result.data.metadata.created).toLocaleDateString()}
+                            </p>
+                            <p className="text-xs text-gray-400 font-mono">
+                              {result.blobId.slice(0, 8)}...{result.blobId.slice(-8)}
+                            </p>
+                          </div>
+                          <button
+                            onClick={() => handleLoadDesign(result.data.designData)}
+                            className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
+                          >
+                            Load
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Batch Load Form */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Blob IDs (one per line or comma-separated)
+                </label>
+                <textarea
+                  value={batchBlobIds}
+                  onChange={(e) => setBatchBlobIds(e.target.value)}
+                  placeholder="Paste multiple Walrus blob IDs here&#10;One per line or separated by commas"
+                  rows={4}
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                <p className="mt-1 text-xs text-gray-500">
+                  Enter multiple blob IDs to load them efficiently in batch
+                </p>
+              </div>
+
+              <button
+                onClick={handleBatchLoad}
+                disabled={isBatchLoading || isDecrypting || !batchBlobIds.trim()}
+                className="w-full flex items-center justify-center space-x-2 px-4 py-3 text-sm font-medium text-white bg-purple-600 rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isBatchLoading || isDecrypting ? (
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                ) : (
+                  <Save className="w-5 h-5" />
+                )}
+                <span>
+                  {isDecrypting 
+                    ? '🔓 Decrypting with Seal...' 
+                    : isBatchLoading 
+                    ? '📥 Batch loading from Walrus...' 
+                    : 'Batch Load from Walrus'
+                  }
+                </span>
+              </button>
+            </div>
+          ) : null}
         </div>
       </div>
 

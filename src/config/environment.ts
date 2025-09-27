@@ -18,6 +18,7 @@ export const config = {
   
   // Walrus Configuration
   walrusWasmUrl: process.env.NEXT_PUBLIC_WALRUS_WASM_URL || 'https://unpkg.com/@mysten/walrus-wasm@latest/web/walrus_wasm_bg.wasm',
+  walrusUploadRelayUrl: process.env.NEXT_PUBLIC_WALRUS_UPLOAD_RELAY_URL || 'https://upload-relay.testnet.walrus.space',
   
   // Seal Configuration
   sealEnabled: process.env.NEXT_PUBLIC_SEAL_ENABLED === 'true',

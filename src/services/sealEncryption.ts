@@ -107,14 +107,20 @@ export class SealEncryptionService {
           if (sdkResult.success && sdkResult.data) {
             return sdkResult.data.encryptedData;
           } else {
-            throw new Error(sdkResult.error || 'SDK encryption failed');
+            const errorMessage = sdkResult.error ? 
+              (typeof sdkResult.error === 'string' ? sdkResult.error : String(sdkResult.error)) : 
+              'SDK encryption failed';
+            throw new Error(errorMessage);
           }
         });
         
         if (retryResult.success && retryResult.data) {
           encryptedData = retryResult.data;
         } else {
-          throw new Error(retryResult.error || 'SDK encryption failed after retries');
+          const errorMessage = retryResult.error ? 
+            (typeof retryResult.error === 'string' ? retryResult.error : String(retryResult.error)) : 
+            'SDK encryption failed after retries';
+          throw new Error(errorMessage);
         }
       } else {
         // Fall back to production encryption with retry
@@ -125,7 +131,10 @@ export class SealEncryptionService {
         if (retryResult.success && retryResult.data) {
           encryptedData = retryResult.data;
         } else {
-          throw new Error(retryResult.error || 'Production encryption failed after retries');
+          const errorMessage = retryResult.error ? 
+            (typeof retryResult.error === 'string' ? retryResult.error : String(retryResult.error)) : 
+            'Production encryption failed after retries';
+          throw new Error(errorMessage);
         }
       }
       
@@ -151,7 +160,8 @@ export class SealEncryptionService {
       return result;
     } catch (error) {
       console.error('❌ Seal encryption failed:', error);
-      throw new Error(`Encryption failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      throw new Error(`Encryption failed: ${errorMessage}`);
     }
   }
 
@@ -185,7 +195,10 @@ export class SealEncryptionService {
         if (sdkResult.success && sdkResult.data) {
           decryptedData = sdkResult.data.decryptedData;
         } else {
-          throw new Error(sdkResult.error || 'SDK decryption failed');
+          const errorMessage = sdkResult.error ? 
+            (typeof sdkResult.error === 'string' ? sdkResult.error : String(sdkResult.error)) : 
+            'SDK decryption failed';
+          throw new Error(errorMessage);
         }
       } else {
         // Fall back to production decryption
@@ -207,7 +220,8 @@ export class SealEncryptionService {
       return result;
     } catch (error) {
       console.error('❌ Seal decryption failed:', error);
-      throw new Error(`Decryption failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      throw new Error(`Decryption failed: ${errorMessage}`);
     }
   }
 
@@ -225,7 +239,10 @@ export class SealEncryptionService {
         if (sdkResult.success && sdkResult.data) {
           hasAccess = sdkResult.data.hasAccess;
         } else {
-          throw new Error(sdkResult.error || 'SDK access validation failed');
+          const errorMessage = sdkResult.error ? 
+            (typeof sdkResult.error === 'string' ? sdkResult.error : String(sdkResult.error)) : 
+            'SDK access validation failed';
+          throw new Error(errorMessage);
         }
       } else {
         // Fall back to production validation
