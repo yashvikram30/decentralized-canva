@@ -185,28 +185,34 @@ export default function Toolbar({
       </div>
 
       {/* AI Tools */}
-      <div>
-        <h3 className="text-sm font-medium text-gray-700 mb-3">AI Tools</h3>
-        <div className="space-y-2">
-          <button
-            onClick={onAIText}
-            className="w-full flex items-center justify-center space-x-2 p-3 text-purple-600 bg-purple-50 hover:bg-purple-100 rounded-lg transition-colors"
-            title="AI Text Generation"
-          >
-            <Sparkles className="w-5 h-5" />
-            <span className="text-sm font-medium">AI Text</span>
-          </button>
-          
-          <button
-            onClick={onAIImage}
-            className="w-full flex items-center justify-center space-x-2 p-3 text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors"
-            title="AI Image Generation"
-          >
-            <Wand2 className="w-5 h-5" />
-            <span className="text-sm font-medium">AI Image</span>
-          </button>
+      {onAIText || onAIImage ? (
+        <div>
+          <h3 className="text-sm font-medium text-gray-700 mb-3">AI Tools</h3>
+          <div className="space-y-2">
+            {onAIText && (
+              <button
+                onClick={onAIText}
+                className="w-full flex items-center justify-center space-x-2 p-3 text-purple-600 bg-purple-50 hover:bg-purple-100 rounded-lg transition-colors"
+                title="AI Text Generation"
+              >
+                <Sparkles className="w-5 h-5" />
+                <span className="text-sm font-medium">AI Text</span>
+              </button>
+            )}
+            
+            {onAIImage && (
+              <button
+                onClick={onAIImage}
+                className="w-full flex items-center justify-center space-x-2 p-3 text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors"
+                title="AI Image Generation"
+              >
+                <Wand2 className="w-5 h-5" />
+                <span className="text-sm font-medium">AI Image</span>
+              </button>
+            )}
+          </div>
         </div>
-      </div>
+      ) : null}
 
 
       {/* Color Palette */}

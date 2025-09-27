@@ -49,8 +49,8 @@ export class SealSDKAdapter {
       threshold: config.sealThreshold,
       network: config.suiNetwork as 'testnet' | 'mainnet',
       suiRpcUrl: config.suiRpcUrl,
-      packageId: process.env.NEXT_PUBLIC_PACKAGE_ID || '',
-      registryId: process.env.NEXT_PUBLIC_REGISTRY_ID || '',
+      packageId: config.packageId, // Use config value instead of env directly
+      registryId: config.registryId, // Use config value instead of env directly
     };
   }
 
@@ -91,13 +91,62 @@ export class SealSDKAdapter {
     userAddress: string,
     accessPolicyId: string
   ): Promise<SealSDKResult> {
+    // Validate inputs
+    if (!userAddress || typeof userAddress !== 'string') {
+      return {
+        success: false,
+        error: 'Valid user address is required for encryption',
+      };
+    }
+    
+    if (!accessPolicyId || typeof accessPolicyId !== 'string') {
+      return {
+        success: false,
+        error: 'Valid access policy ID is required for encryption',
+      };
+    }
+    
+    if (!data || !(data instanceof Uint8Array)) {
+      return {
+        success: false,
+        error: 'Valid data (Uint8Array) is required for encryption',
+      };
+    }
+
     try {
       if (this.isRealSDKAvailable && this.sealSDK) {
+        // Debug logging
+        console.log('🔍 Seal SDK Debug - Encrypt Data:', {
+          packageId: this.config.packageId,
+          userAddress: userAddress,
+          packageIdValid: this.isValidHexString(this.config.packageId),
+          userAddressValid: this.isValidHexString(userAddress),
+          dataLength: data.length
+        });
+        
+        // Validate hex strings before calling fromHEX
+        if (!this.isValidHexString(this.config.packageId)) {
+          console.error('❌ Invalid package ID:', this.config.packageId);
+          return {
+            success: false,
+            error: 'Invalid package ID format for encryption',
+          };
+        }
+        
+        if (!this.isValidHexString(userAddress)) {
+          console.error('❌ Invalid user address:', userAddress);
+          return {
+            success: false,
+            error: 'Invalid user address format for encryption',
+          };
+        }
+        
         // Use real Seal SDK with proper API
+        // Pass hex strings directly per official Seal docs; SDK normalizes internally
         const { encryptedObject: encryptedBytes, key: backupKey } = await this.sealSDK.encrypt({
           threshold: this.config.threshold,
-          packageId: fromHEX(this.config.packageId),
-          id: fromHEX(userAddress),
+          packageId: this.config.packageId,
+          id: userAddress,
           data,
         });
         
@@ -113,6 +162,7 @@ export class SealSDKAdapter {
         };
       } else {
         // Fall back to our production encryption
+        console.log('🔄 Falling back to production encryption (Seal SDK not available)');
         const result = await sealEncryption.encryptData(data, userAddress);
         
         return {
@@ -121,9 +171,23 @@ export class SealSDKAdapter {
         };
       }
     } catch (error) {
+      console.error('❌ Seal SDK encryption error:', error);
+      
+      // Safely extract error message
+      let errorMessage = 'Encryption failed';
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      } else if (typeof error === 'string') {
+        errorMessage = error;
+      } else if (error && typeof error === 'object' && 'message' in error) {
+        errorMessage = String(error.message);
+      } else {
+        errorMessage = 'Unknown encryption error';
+      }
+      
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Encryption failed',
+        error: errorMessage,
       };
     }
   }
@@ -134,8 +198,45 @@ export class SealSDKAdapter {
     userAddress: string,
     designId?: string
   ): Promise<SealSDKResult> {
+    // Validate inputs
+    if (!userAddress || typeof userAddress !== 'string') {
+      return {
+        success: false,
+        error: 'Valid user address is required for decryption',
+      };
+    }
+    
+    if (!accessPolicyId || typeof accessPolicyId !== 'string') {
+      return {
+        success: false,
+        error: 'Valid access policy ID is required for decryption',
+      };
+    }
+    
+    if (!encryptedData || !(encryptedData instanceof Uint8Array)) {
+      return {
+        success: false,
+        error: 'Valid encrypted data (Uint8Array) is required for decryption',
+      };
+    }
+
     try {
       if (this.isRealSDKAvailable && this.sealSDK) {
+        // Validate hex strings before calling fromHEX
+        if (!this.isValidHexString(this.config.packageId)) {
+          return {
+            success: false,
+            error: 'Invalid package ID format for decryption',
+          };
+        }
+        
+        if (!this.isValidHexString(userAddress)) {
+          return {
+            success: false,
+            error: 'Invalid user address format for decryption',
+          };
+        }
+        
         // Create transaction block for Seal decryption
         const tx = new Transaction();
         
@@ -201,6 +302,21 @@ export class SealSDKAdapter {
   ): Promise<SealSDKResult> {
     try {
       if (this.isRealSDKAvailable && this.sealSDK) {
+        // Validate hex strings before calling fromHEX
+        if (!this.isValidHexString(accessPolicyId)) {
+          return {
+            success: false,
+            error: 'Invalid access policy ID format for validation',
+          };
+        }
+        
+        if (!this.isValidHexString(userAddress)) {
+          return {
+            success: false,
+            error: 'Invalid user address format for validation',
+          };
+        }
+        
         // Use real Seal SDK
         const result = await this.sealSDK.validateAccess({
           accessPolicyId,
@@ -234,6 +350,14 @@ export class SealSDKAdapter {
   ): Promise<SealSDKResult> {
     try {
       if (this.isRealSDKAvailable && this.sealSDK) {
+        // Validate hex strings before calling fromHEX
+        if (!this.isValidHexString(userAddress)) {
+          return {
+            success: false,
+            error: 'Invalid user address format for policy creation',
+          };
+        }
+        
         // Use real Seal SDK
         const result = await this.sealSDK.createAccessPolicy({
           userAddress,
@@ -299,6 +423,16 @@ export class SealSDKAdapter {
   // Utility methods
   isSDKAvailable(): boolean {
     return this.isRealSDKAvailable;
+  }
+
+  private isValidHexString(value: string): boolean {
+    if (!value || typeof value !== 'string') {
+      return false;
+    }
+    
+    // Check if it's a valid hex string (starts with 0x and contains only hex characters)
+    const hexPattern = /^0x[0-9a-fA-F]+$/;
+    return hexPattern.test(value) && value.length > 2; // At least 0x + 1 character
   }
 
   getSDKInfo(): {

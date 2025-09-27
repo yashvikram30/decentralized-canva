@@ -24,13 +24,16 @@ export class EncryptedStorageService {
     permissions: Partial<AccessPolicy['permissions']> = {}
   ): Promise<StoredDesign> {
     try {
+      // Generate policy ID for encryption
+      const policyId = `user_${owner.slice(0, 8)}_${Date.now()}`;
+      
       // Create access policy
       const policy = await accessControl.createPolicy(owner, permissions);
       
       // Encrypt the canvas data
       const canvasDataBytes = new TextEncoder().encode(JSON.stringify(canvasData));
       const sealPolicy = {
-        id: policy.owner,
+        id: policyId,
         owner: policy.owner,
         allowedUsers: policy.permissions.read,
         conditions: {
@@ -81,7 +84,7 @@ export class EncryptedStorageService {
         name,
         canvasData: encryptedData,
         encrypted: true,
-        policyId: policy.owner, // Using owner as policy ID for simplicity
+        policyId: policyId,
         blobId: storageResult.blobId,
         createdAt: Date.now(),
         updatedAt: Date.now()
@@ -111,8 +114,11 @@ export class EncryptedStorageService {
       // Retrieve from Walrus
       const storageData = await walrusClient.retrieve(design.blobId, user);
       
+      // Convert encrypted data back to Uint8Array (JSON parsing converts it to regular array)
+      const encryptedDataUint8 = new Uint8Array(storageData.data.encryptedData!);
+      
       // Decrypt the data
-      const decryptionResult = await sealEncryption.decryptData(storageData.data.encryptedData!, design.policyId, user);
+      const decryptionResult = await sealEncryption.decryptData(encryptedDataUint8, design.policyId, user);
       const decryptedData = JSON.parse(new TextDecoder().decode(decryptionResult.decryptedData));
       
       // Return design with decrypted data
@@ -143,14 +149,15 @@ export class EncryptedStorageService {
       const canvasDataBytes = new TextEncoder().encode(JSON.stringify(canvasDataToEncrypt));
       const sealPolicy = {
         id: design.policyId,
-        owner: design.policyId,
-        allowedUsers: [design.policyId],
+        owner: user,
+        allowedUsers: [user], // User address, not policy ID
         conditions: {
           minEpochs: 1,
           maxEpochs: 1000,
           requireWallet: true
         }
       };
+      
       const encryptionResult = await sealEncryption.encryptData(canvasDataBytes, user, sealPolicy);
       const encryptedData = encryptionResult.encryptedData;
       

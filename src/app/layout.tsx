@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import '@mysten/dapp-kit/dist/index.css';
 import Providers from '@/components/Providers';
+import '@/lib/pixel-retroui-setup.js';
 
 const inter = Inter({
   subsets: ["latin"],

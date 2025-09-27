@@ -6,7 +6,6 @@ import { useCanvas } from '@/hooks/useCanvas';
 import Toolbar from './Toolbar';
 import PropertyPanel from './PropertyPanel';
 import AIAssistant from '../AI/AIAssistant';
-import AITextModal from '../AI/AITextModal';
 import AIImageModal from '../AI/AIImageModal';
 import EncryptionStatus from '../Privacy/EncryptionStatus';
 import SaveDialog from '../Storage/SaveDialog';
@@ -25,13 +24,13 @@ export default function CanvasEditor({ className }: CanvasEditorProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasContainerRef = useRef<HTMLDivElement>(null);
   const walrusActionRef = useRef<((action: 'save' | 'load') => void) | null>(null);
-  const [showAITextModal, setShowAITextModal] = useState(false);
+  // Removed AI Text modal usage
   const [showAIImageModal, setShowAIImageModal] = useState(false);
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [encryptionStatus, setEncryptionStatus] = useState<'public' | 'private' | 'team' | 'template'>('public');
   const [isProcessingEncryption, setIsProcessingEncryption] = useState(false);
   const [selectedTool, setSelectedTool] = useState<'select' | 'text' | 'rectangle' | 'circle' | 'image'>('select');
-  const [activeAIPanel, setActiveAIPanel] = useState<'text' | 'image' | null>(null);
+  const [activeAIPanel, setActiveAIPanel] = useState<'image' | null>(null);
   
   const { toasts, success, removeToast } = useToast();
   const currentAccount = useCurrentAccount();
@@ -91,7 +90,7 @@ export default function CanvasEditor({ className }: CanvasEditorProps) {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Prevent shortcuts when modals are open
-      if (showAITextModal || showAIImageModal || showSaveDialog) return;
+      if (showAIImageModal || showSaveDialog) return;
       
       // Ctrl/Cmd + S: Save
       if ((e.ctrlKey || e.metaKey) && e.key === 's') {
@@ -134,7 +133,7 @@ export default function CanvasEditor({ className }: CanvasEditorProps) {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [showAITextModal, showAIImageModal, showSaveDialog, selectedObjects, deleteSelected, canvas, success]);
+  }, [showAIImageModal, showSaveDialog, selectedObjects, deleteSelected, canvas, success]);
 
   if (canvasError) {
     return (
@@ -168,7 +167,6 @@ export default function CanvasEditor({ className }: CanvasEditorProps) {
             onSetZoom={setZoom}
             onSetDrawingMode={setDrawingMode}
             onSetTool={setSelectedTool}
-            onAIText={() => setActiveAIPanel('text')}
             onAIImage={() => setActiveAIPanel('image')}
             onSave={() => walrusActionRef.current?.('save')}
             onLoad={() => walrusActionRef.current?.('load')}
@@ -254,12 +252,6 @@ export default function CanvasEditor({ className }: CanvasEditorProps) {
       </div>
 
       {/* AI Modals */}
-      <AITextModal 
-        isOpen={showAITextModal}
-        onClose={() => setShowAITextModal(false)}
-        canvas={canvas}
-      />
-      
       <AIImageModal 
         isOpen={showAIImageModal}
         onClose={() => setShowAIImageModal(false)}

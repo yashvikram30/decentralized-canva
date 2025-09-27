@@ -5,7 +5,6 @@ import { fabric } from '@/lib/fabric';
 import { Download, Upload, Save, Settings, Image, Link, Wallet, Copy, ExternalLink, RefreshCw, CheckCircle } from 'lucide-react';
 import { cn } from '@/utils/helpers';
 import { updateTextFontFamily, AVAILABLE_FONTS, initializeFonts } from '@/utils/fontLoader';
-import AITextModal from '../AI/AITextModal';
 import AIImageModal from '../AI/AIImageModal';
 import WalrusPopup from '../Storage/WalrusPopup';
 import { useCurrentAccount, useCurrentWallet, useSuiClient } from '@mysten/dapp-kit';
@@ -16,7 +15,7 @@ interface PropertyPanelProps {
   onExport?: (format: 'json' | 'svg' | 'png') => any;
   onAddImage?: (url: string) => void;
   selectedTool?: 'select' | 'text' | 'rectangle' | 'circle' | 'image';
-  activeAIPanel?: 'text' | 'image' | null;
+  activeAIPanel?: 'image' | null;
   onCloseAIPanel?: () => void;
   onLoad?: (designData: any) => void;
   onWalrusActionRef?: React.MutableRefObject<((action: 'save' | 'load') => void) | null>;
@@ -581,30 +580,8 @@ export default function PropertyPanel({
           </div>
         </div>
 
-        {/* Show AI panels when active */}
-        {activeAIPanel === 'text' ? (
-          <div className="h-full w-full">
-            <div className="p-4 border-b border-gray-200 flex items-center justify-between flex-shrink-0">
-              <h2 className="text-lg font-semibold text-gray-900">AI Text Generation</h2>
-              <button
-                onClick={onCloseAIPanel}
-                className="text-gray-400 hover:text-gray-600 transition-colors"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-            <div className="h-full w-full overflow-hidden">
-              <AITextModal 
-                isOpen={true}
-                onClose={onCloseAIPanel || (() => {})}
-                canvas={canvas}
-                embedded={true}
-              />
-            </div>
-          </div>
-        ) : activeAIPanel === 'image' ? (
+        {/* Show AI Image panel when active */}
+        {activeAIPanel === 'image' ? (
           <div className="h-full w-full">
             <div className="p-4 border-b border-gray-200 flex items-center justify-between flex-shrink-0">
               <h2 className="text-lg font-semibold text-gray-900">AI Image Generation</h2>

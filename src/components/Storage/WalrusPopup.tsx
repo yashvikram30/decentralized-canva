@@ -93,6 +93,24 @@ export default function WalrusPopup({ isOpen, onClose, canvas, onLoad, mode }: W
       if (!isConnected) {
         throw new Error('Wallet not connected');
       }
+      
+      // Ensure we have a valid address for encryption
+      if (isEncrypted && (!address || typeof address !== 'string')) {
+        console.error('❌ Encryption requires valid wallet address:', { address, isEncrypted });
+        throw new Error('Valid wallet address is required for encryption');
+      }
+      
+      // Debug logging for encryption
+      if (isEncrypted) {
+        console.log('🔐 Encryption Debug:', {
+          address,
+          addressType: typeof address,
+          addressLength: address?.length,
+          isConnected,
+          walletName
+        });
+      }
+      
       const result = await store(blobData, walletService as any, 1, {}, address || undefined);
       
       if (result.stored) {

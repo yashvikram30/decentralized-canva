@@ -119,6 +119,11 @@ export class WalrusClientService {
       if (data.metadata.encrypted && config.sealEnabled && userAddress) {
         console.log('🔐 Encrypting data with Seal before storage...');
         
+        // Validate user address before proceeding
+        if (!userAddress || typeof userAddress !== 'string') {
+          throw new Error('Valid user address is required for encryption');
+        }
+        
         // Initialize Seal if not already done
         if (!sealEncryption.isReady()) {
           await sealEncryption.initialize();
@@ -323,6 +328,19 @@ export class WalrusClientService {
         }
         
         data = JSON.parse(decodedText);
+        
+        // Debug: Log the structure of the parsed data
+        console.log('🔍 Parsed data structure:', {
+          hasDesignData: !!data.designData,
+          hasEncryptedData: !!data.encryptedData,
+          hasSealEncryption: !!data.sealEncryption,
+          metadataEncrypted: data.metadata?.encrypted,
+          encryptedDataLength: data.encryptedData?.length,
+          designDataType: typeof data.designData,
+          keys: Object.keys(data),
+          sealEncryptionKeys: data.sealEncryption ? Object.keys(data.sealEncryption) : 'none',
+          sealEncryptionEncryptedData: data.sealEncryption?.encryptedData ? 'exists' : 'missing'
+        });
       } catch (parseError) {
         console.error('❌ Failed to parse file data:', parseError);
         console.error('❌ Blob length:', blob.length);
@@ -348,6 +366,112 @@ export class WalrusClientService {
       if (data.metadata.encrypted && data.sealEncryption && userAddress) {
         console.log('🔓 Decrypting data with Seal...');
         
+        // Validate that we have the required encryption data
+        if (!data.sealEncryption.accessPolicyId) {
+          throw new Error('Missing access policy ID - cannot decrypt data');
+        }
+        
+        // DEBUG: Log the exact state of encryptedData before any checks
+        console.log('🔍 DEBUG: encryptedData analysis before validation:');
+        console.log('  - data.encryptedData exists:', !!data.encryptedData);
+        console.log('  - data.encryptedData === undefined:', data.encryptedData === undefined);
+        console.log('  - data.encryptedData === null:', data.encryptedData === null);
+        console.log('  - typeof data.encryptedData:', typeof data.encryptedData);
+        console.log('  - Array.isArray(data.encryptedData):', Array.isArray(data.encryptedData));
+        console.log('  - data.encryptedData.length:', data.encryptedData?.length);
+        console.log('  - data.encryptedData constructor:', data.encryptedData?.constructor?.name);
+        console.log('  - data.encryptedData value:', data.encryptedData);
+        console.log('  - JSON.stringify(data.encryptedData):', JSON.stringify(data.encryptedData));
+        
+        // Check if encryptedData exists and is not empty (array or object with numeric keys)
+        const hasValidEncryptedData = data.encryptedData && 
+          data.encryptedData !== undefined && 
+          data.encryptedData !== null && 
+          (Array.isArray(data.encryptedData) || 
+           (typeof data.encryptedData === 'object' && Object.keys(data.encryptedData).length > 0)) &&
+          (Array.isArray(data.encryptedData) ? data.encryptedData.length > 0 : Object.keys(data.encryptedData).length > 0);
+          
+        console.log('🔍 DEBUG: hasValidEncryptedData result:', hasValidEncryptedData);
+          
+        if (!hasValidEncryptedData) {
+          console.log('⚠️ Data marked as encrypted but no valid encryptedData found');
+          console.log('🔍 EncryptedData details:', {
+            exists: !!data.encryptedData,
+            isUndefined: data.encryptedData === undefined,
+            isNull: data.encryptedData === null,
+            type: typeof data.encryptedData,
+            length: data.encryptedData?.length,
+            isArray: Array.isArray(data.encryptedData),
+            constructor: data.encryptedData?.constructor?.name,
+            value: data.encryptedData
+          });
+          
+          // DEBUG: Check sealEncryption object
+          console.log('🔍 DEBUG: sealEncryption object analysis:');
+          console.log('  - data.sealEncryption exists:', !!data.sealEncryption);
+          if (data.sealEncryption) {
+            console.log('  - data.sealEncryption.encryptedData exists:', !!data.sealEncryption.encryptedData);
+            console.log('  - data.sealEncryption.encryptedData type:', typeof data.sealEncryption.encryptedData);
+            console.log('  - data.sealEncryption.encryptedData isArray:', Array.isArray(data.sealEncryption.encryptedData));
+            console.log('  - data.sealEncryption.encryptedData length:', data.sealEncryption.encryptedData?.length);
+            console.log('  - data.sealEncryption keys:', Object.keys(data.sealEncryption));
+            console.log('  - data.sealEncryption.encryptedData value:', data.sealEncryption.encryptedData);
+          }
+          
+          // Try to get encrypted data from sealEncryption object
+          if (data.sealEncryption && data.sealEncryption.encryptedData) {
+            console.log('🔍 Found encrypted data in sealEncryption object, using that instead');
+            data.encryptedData = data.sealEncryption.encryptedData;
+          }
+          // Check if the data might be stored in a different format
+          else if (data.sealEncryption && data.sealEncryption.encryptedData === undefined) {
+            console.log('⚠️ sealEncryption.encryptedData is also undefined - this suggests a storage issue');
+            console.log('🔍 Full sealEncryption object:', data.sealEncryption);
+          }
+          // Check if encryptedData is an empty object and look for alternatives
+          else if (data.encryptedData && typeof data.encryptedData === 'object' && !Array.isArray(data.encryptedData)) {
+            console.log('⚠️ encryptedData is an object but not an array - checking for alternative storage');
+            console.log('🔍 Checking all data fields for encrypted content...');
+            
+            // Look for any field that might contain the encrypted data
+            const possibleEncryptedFields = Object.keys(data).filter(key => 
+              key.toLowerCase().includes('encrypt') || 
+              key.toLowerCase().includes('cipher') ||
+              key.toLowerCase().includes('data')
+            );
+            console.log('🔍 Possible encrypted fields:', possibleEncryptedFields);
+            
+            // Check if any of these fields contain array data
+            for (const field of possibleEncryptedFields) {
+              const value = (data as any)[field];
+              if (Array.isArray(value) && value.length > 0) {
+                console.log(`🔍 Found potential encrypted data in field '${field}' with length ${value.length}`);
+                data.encryptedData = new Uint8Array(value);
+                break;
+              }
+            }
+          }
+          // Check if designData exists and use it directly
+          else if (data.designData && typeof data.designData === 'object' && data.designData !== null) {
+            console.log('🔍 Using existing designData (data may not have been properly encrypted)');
+            return {
+              blobId,
+              data,
+              timestamp: Date.now(),
+              size: JSON.stringify(data).length,
+              decrypted: true
+            };
+          }
+          // If designData is null but we have other data, this might be a corrupted save
+          else if (data.designData === null) {
+            console.log('⚠️ Design data is null - this might be a corrupted save');
+            throw new Error('Design data is corrupted (null) - please try saving again');
+          }
+          else {
+            throw new Error('No encrypted data found - the design may not be properly encrypted');
+          }
+        }
+        
         try {
           // Initialize Seal if not already done
           if (!sealEncryption.isReady()) {
@@ -364,9 +488,59 @@ export class WalrusClientService {
             throw new Error('Access denied: You do not have permission to decrypt this data');
           }
 
+          // This validation is now handled above in the comprehensive check
+          
+          // DEBUG: Log what we're about to convert to Uint8Array
+          console.log('🔍 DEBUG: About to convert to Uint8Array:');
+          console.log('  - data.encryptedData type:', typeof data.encryptedData);
+          console.log('  - data.encryptedData isArray:', Array.isArray(data.encryptedData));
+          console.log('  - data.encryptedData length:', data.encryptedData?.length);
+          console.log('  - data.encryptedData first 5 elements:', data.encryptedData?.slice?.(0, 5));
+          console.log('  - data.encryptedData constructor:', data.encryptedData?.constructor?.name);
+          
+          // FIX: Convert object with numeric keys back to proper array
+          let encryptedDataArray: number[];
+          if (Array.isArray(data.encryptedData)) {
+            // Already an array
+            encryptedDataArray = data.encryptedData;
+            console.log('🔧 Data is already an array, using as-is');
+          } else if (typeof data.encryptedData === 'object' && data.encryptedData !== null) {
+            // Object with numeric keys - convert to array
+            console.log('🔧 Converting object with numeric keys to array');
+            const keys = Object.keys(data.encryptedData).map(Number).sort((a, b) => a - b);
+            console.log('🔧 Object keys range:', { min: Math.min(...keys), max: Math.max(...keys), count: keys.length });
+            encryptedDataArray = keys.map(key => (data.encryptedData as any)[key]);
+            console.log('🔧 Converted array length:', encryptedDataArray.length);
+            console.log('🔧 First 5 converted values:', encryptedDataArray.slice(0, 5));
+          } else {
+            throw new Error('Invalid encryptedData format - expected array or object with numeric keys');
+          }
+          
+          // Convert to Uint8Array
+          const encryptedDataUint8 = new Uint8Array(encryptedDataArray);
+          
+          console.log('🔍 DEBUG: After Uint8Array conversion:');
+          console.log('  - encryptedDataUint8 length:', encryptedDataUint8.length);
+          console.log('  - encryptedDataUint8 first 5 bytes:', Array.from(encryptedDataUint8.slice(0, 5)));
+          
+          console.log('🔍 Encrypted data before decryption:', {
+            originalType: typeof data.encryptedData,
+            originalLength: data.encryptedData?.length,
+            uint8Length: encryptedDataUint8.length,
+            firstBytes: Array.from(encryptedDataUint8.slice(0, 10)),
+            lastBytes: Array.from(encryptedDataUint8.slice(-10)),
+            accessPolicyId: data.sealEncryption.accessPolicyId,
+            userAddress: userAddress.slice(0, 8) + '...'
+          });
+          
+          // Validate Uint8Array is not empty
+          if (encryptedDataUint8.length === 0) {
+            throw new Error('Encrypted data is empty after conversion - the design may be corrupted');
+          }
+          
           // Decrypt the data
           const decryptionResult = await sealEncryption.decryptData(
-            data.encryptedData!,
+            encryptedDataUint8,
             data.sealEncryption.accessPolicyId,
             userAddress
           );
@@ -378,8 +552,32 @@ export class WalrusClientService {
           console.log('✅ Data decrypted successfully');
         } catch (decryptError) {
           console.error('❌ Decryption failed:', decryptError);
+          
+          // Check if the data might actually be unencrypted
+          if (data.designData && typeof data.designData === 'object') {
+            console.log('🔍 Data appears to be unencrypted, using designData directly');
+            // Data is already decrypted, use it directly
+            return {
+              blobId,
+              data,
+              timestamp: Date.now(),
+              size: JSON.stringify(data).length,
+              decrypted: true
+            };
+          }
+          
           throw new Error(`Failed to decrypt data: ${decryptError instanceof Error ? decryptError.message : 'Unknown error'}`);
         }
+      } else if (data.designData && typeof data.designData === 'object') {
+        console.log('🔍 Data is not encrypted, using designData directly');
+        // Data is not encrypted, use it directly
+        return {
+          blobId,
+          data,
+          timestamp: Date.now(),
+          size: JSON.stringify(data).length,
+          decrypted: true
+        };
       }
       
       console.log('✅ Successfully retrieved from Walrus');
@@ -550,9 +748,12 @@ export class WalrusClientService {
               throw new Error(`Access denied for design ${blobIds[i]}: You do not have permission to decrypt this data`);
             }
 
+            // Convert encrypted data back to Uint8Array (JSON parsing converts it to regular array)
+            const encryptedDataUint8 = new Uint8Array(data.encryptedData!);
+            
             // Decrypt the data
             const decryptionResult = await sealEncryption.decryptData(
-              data.encryptedData!,
+              encryptedDataUint8,
               data.sealEncryption.accessPolicyId,
               userAddress
             );
@@ -679,8 +880,11 @@ export class WalrusClientService {
               throw new Error('Access denied: You do not have permission to decrypt this design');
             }
 
+            // Convert encrypted data back to Uint8Array (JSON parsing converts it to regular array)
+            const encryptedDataUint8 = new Uint8Array(designData.encryptedData!);
+            
             const decryptionResult = await sealEncryption.decryptData(
-              designData.encryptedData!,
+              encryptedDataUint8,
               designData.sealEncryption.accessPolicyId,
               userAddress
             );
@@ -726,8 +930,11 @@ export class WalrusClientService {
               throw new Error('Access denied: You do not have permission to decrypt this design');
             }
 
+            // Convert encrypted data back to Uint8Array (JSON parsing converts it to regular array)
+            const encryptedDataUint8 = new Uint8Array(designData.encryptedData!);
+            
             const decryptionResult = await sealEncryption.decryptData(
-              designData.encryptedData!,
+              encryptedDataUint8,
               designData.sealEncryption.accessPolicyId,
               userAddress
             );
