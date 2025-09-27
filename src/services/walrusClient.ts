@@ -249,21 +249,62 @@ export class WalrusClientService {
     return this.retryWithBackoff(async () => {
       console.log('📥 Retrieving from Walrus:', blobId);
       
-      // Use readBlob for now (getFiles might not be available in current SDK version)
-      let blob: Uint8Array;
+      // Use getFiles API as recommended by the official Walrus SDK documentation
+      let files: any[];
       try {
-        blob = await this.walrusClient.readBlob({ blobId });
+        // Use getFiles method which is the recommended approach according to the docs
+        files = await this.walrusClient.getFiles({ ids: [blobId] });
+        
+        if (!files || files.length === 0) {
+          throw new Error('No files found for the provided blob ID');
+        }
+        
+        const file = files[0];
+        if (!file) {
+          throw new Error('File not found in Walrus storage');
+        }
+        
+        console.log('📄 Retrieved WalrusFile:', file);
+        
       } catch (readError) {
-        console.error('❌ Failed to read blob from Walrus:', readError);
-        if (readError instanceof Error && readError.message.includes('RangeError')) {
+        console.error('❌ Failed to read file from Walrus:', readError);
+        
+        // Handle specific Walrus SDK errors as documented
+        if (readError instanceof RetryableWalrusClientError) {
+          console.log('Retryable error detected, resetting client...');
+          this.walrusClient.reset();
+          throw new Error('Temporary Walrus error - please try again');
+        }
+        
+        // Handle DataView bounds errors specifically
+        if (readError instanceof Error && readError.message.includes('Offset is outside the bounds of the DataView')) {
           throw new Error('Data corruption detected in Walrus storage. The blob may be corrupted or incomplete.');
         }
-        throw new Error(`Failed to read blob from Walrus: ${readError instanceof Error ? readError.message : 'Unknown error'}`);
+        
+        // Handle network errors
+        const errorMessage = readError instanceof Error ? readError.message : 'Unknown error';
+        if (errorMessage.includes('Failed to fetch') || errorMessage.includes('ERR_CONNECTION_CLOSED')) {
+          throw new Error('Network error: Unable to connect to Walrus storage. Please check your internet connection and try again.');
+        }
+        
+        throw new Error(`Failed to read file from Walrus: ${errorMessage}`);
       }
       
-      // Validate blob data
-      if (!blob || blob.length === 0) {
-        throw new Error('Empty or invalid blob data received from Walrus');
+      // Get the file content using the WalrusFile API
+      let blob: Uint8Array;
+      try {
+        // Use the WalrusFile.bytes() method as recommended in the docs
+        blob = await files[0].bytes();
+        
+        if (!blob || blob.length === 0) {
+          throw new Error('Empty or invalid file data received from Walrus');
+        }
+        
+        console.log('📄 Retrieved file data length:', blob.length);
+        
+      } catch (bytesError) {
+        console.error('❌ Failed to get bytes from WalrusFile:', bytesError);
+        throw new Error(`Failed to read file content: ${bytesError instanceof Error ? bytesError.message : 'Unknown error'}`);
       }
       
       // Safely decode and parse the blob data
@@ -272,34 +313,34 @@ export class WalrusClientService {
         // Create a safe copy of the blob to avoid DataView issues
         const blobArray = new Uint8Array(blob);
         const decodedText = new TextDecoder().decode(blobArray);
-        console.log('📄 Decoded blob data length:', decodedText.length);
+        console.log('📄 Decoded file data length:', decodedText.length);
         console.log('📄 First 200 chars:', decodedText.substring(0, 200));
         
         // Check if the data looks like JSON
         const trimmedText = decodedText.trim();
         if (!trimmedText.startsWith('{') && !trimmedText.startsWith('[')) {
-          throw new Error('Blob data does not appear to be valid JSON');
+          throw new Error('File data does not appear to be valid JSON');
         }
         
         data = JSON.parse(decodedText);
       } catch (parseError) {
-        console.error('❌ Failed to parse blob data:', parseError);
+        console.error('❌ Failed to parse file data:', parseError);
         console.error('❌ Blob length:', blob.length);
         console.error('❌ Blob type:', typeof blob);
         console.error('❌ Blob constructor:', blob.constructor.name);
         
         // Try to provide more helpful error information
         if (parseError instanceof SyntaxError) {
-          throw new Error(`Invalid JSON in blob data: ${parseError.message}`);
+          throw new Error(`Invalid JSON in file data: ${parseError.message}`);
         } else if (parseError instanceof RangeError) {
-          throw new Error(`Data corruption detected in blob: ${parseError.message}`);
+          throw new Error(`Data corruption detected in file: ${parseError.message}`);
         } else {
           // Check if it's a network error
           const errorMessage = parseError instanceof Error ? parseError.message : 'Unknown parsing error';
           if (errorMessage.includes('Failed to fetch') || errorMessage.includes('ERR_CONNECTION_CLOSED')) {
             throw new Error(`Network error: Unable to connect to Walrus storage. Please check your internet connection and try again.`);
           }
-          throw new Error(`Failed to parse blob data: ${errorMessage}`);
+          throw new Error(`Failed to parse file data: ${errorMessage}`);
         }
       }
       
@@ -427,17 +468,58 @@ export class WalrusClientService {
     return this.retryWithBackoff(async () => {
       console.log('📥 Batch retrieving from Walrus:', blobIds.length, 'designs');
       
-      // Batch load using individual readBlob calls (getFiles not available in current SDK)
+      // Use getFiles API for batch loading as recommended by the official Walrus SDK documentation
+      let files: any[];
+      try {
+        files = await this.walrusClient.getFiles({ ids: blobIds });
+        
+        if (!files || files.length === 0) {
+          throw new Error('No files found for the provided blob IDs');
+        }
+        
+        console.log('📄 Retrieved WalrusFiles:', files.length);
+        
+      } catch (readError) {
+        console.error('❌ Failed to batch read files from Walrus:', readError);
+        
+        // Handle specific Walrus SDK errors as documented
+        if (readError instanceof RetryableWalrusClientError) {
+          console.log('Retryable error detected, resetting client...');
+          this.walrusClient.reset();
+          throw new Error('Temporary Walrus error - please try again');
+        }
+        
+        // Handle DataView bounds errors specifically
+        if (readError instanceof Error && readError.message.includes('Offset is outside the bounds of the DataView')) {
+          throw new Error('Data corruption detected in Walrus storage. Some blobs may be corrupted or incomplete.');
+        }
+        
+        throw new Error(`Failed to batch read files from Walrus: ${readError instanceof Error ? readError.message : 'Unknown error'}`);
+      }
+      
       const results: WalrusRetrieveResult[] = [];
       
-      for (let i = 0; i < blobIds.length; i++) {
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
         const blobId = blobIds[i];
-        const blob = await this.walrusClient.readBlob({ blobId });
         
-        // Validate blob data
-        if (!blob || blob.length === 0) {
-          console.warn(`⚠️ Empty or invalid blob data for ${blobId}, skipping...`);
+        if (!file) {
+          console.warn(`⚠️ No file data for ${blobId}, skipping...`);
           continue;
+        }
+        
+        // Get the file content using the WalrusFile API
+        let blob: Uint8Array;
+        try {
+          blob = await file.bytes();
+          
+          if (!blob || blob.length === 0) {
+            console.warn(`⚠️ Empty or invalid file data for ${blobId}, skipping...`);
+            continue;
+          }
+        } catch (bytesError) {
+          console.error(`❌ Failed to get bytes from WalrusFile for ${blobId}:`, bytesError);
+          continue; // Skip this file and continue with others
         }
         
         // Safely decode and parse the blob data
@@ -446,8 +528,8 @@ export class WalrusClientService {
           const decodedText = new TextDecoder().decode(blob);
           data = JSON.parse(decodedText);
         } catch (parseError) {
-          console.error(`❌ Failed to parse blob data for ${blobId}:`, parseError);
-          throw new Error(`Failed to parse blob data for ${blobId}: ${parseError instanceof Error ? parseError.message : 'Unknown parsing error'}`);
+          console.error(`❌ Failed to parse file data for ${blobId}:`, parseError);
+          continue; // Skip this file and continue with others
         }
         
         // Decrypt data if it's encrypted and user address provided
@@ -509,13 +591,54 @@ export class WalrusClientService {
     return this.retryWithBackoff(async () => {
       console.log('📥 Retrieving design with assets from Walrus:', designBlobId);
       
-      // For now, use readBlob since getBlob/files API might not be available
-      // This is a simplified approach that reads the combined data structure
-      const blob = await this.walrusClient.readBlob({ blobId: designBlobId });
+      // Use getFiles API as recommended by the official Walrus SDK documentation
+      let files: any[];
+      try {
+        files = await this.walrusClient.getFiles({ ids: [designBlobId] });
+        
+        if (!files || files.length === 0) {
+          throw new Error('No files found for the provided design blob ID');
+        }
+        
+        const file = files[0];
+        if (!file) {
+          throw new Error('Design file not found in Walrus storage');
+        }
+        
+        console.log('📄 Retrieved WalrusFile for design with assets:', file);
+        
+      } catch (readError) {
+        console.error('❌ Failed to read design file from Walrus:', readError);
+        
+        // Handle specific Walrus SDK errors as documented
+        if (readError instanceof RetryableWalrusClientError) {
+          console.log('Retryable error detected, resetting client...');
+          this.walrusClient.reset();
+          throw new Error('Temporary Walrus error - please try again');
+        }
+        
+        // Handle DataView bounds errors specifically
+        if (readError instanceof Error && readError.message.includes('Offset is outside the bounds of the DataView')) {
+          throw new Error('Data corruption detected in Walrus storage. The design blob may be corrupted or incomplete.');
+        }
+        
+        throw new Error(`Failed to read design file from Walrus: ${readError instanceof Error ? readError.message : 'Unknown error'}`);
+      }
       
-      // Validate blob data
-      if (!blob || blob.length === 0) {
-        throw new Error('Empty or invalid blob data received from Walrus');
+      // Get the file content using the WalrusFile API
+      let blob: Uint8Array;
+      try {
+        blob = await files[0].bytes();
+        
+        if (!blob || blob.length === 0) {
+          throw new Error('Empty or invalid file data received from Walrus');
+        }
+        
+        console.log('📄 Retrieved design file data length:', blob.length);
+        
+      } catch (bytesError) {
+        console.error('❌ Failed to get bytes from WalrusFile:', bytesError);
+        throw new Error(`Failed to read design file content: ${bytesError instanceof Error ? bytesError.message : 'Unknown error'}`);
       }
       
       // Safely decode and parse the blob data
@@ -524,8 +647,8 @@ export class WalrusClientService {
         const decodedText = new TextDecoder().decode(blob);
         combinedData = JSON.parse(decodedText);
       } catch (parseError) {
-        console.error('❌ Failed to parse blob data:', parseError);
-        throw new Error(`Failed to parse blob data: ${parseError instanceof Error ? parseError.message : 'Unknown parsing error'}`);
+        console.error('❌ Failed to parse design file data:', parseError);
+        throw new Error(`Failed to parse design file data: ${parseError instanceof Error ? parseError.message : 'Unknown parsing error'}`);
       }
       
       // Check if this is a design with assets structure
@@ -711,13 +834,13 @@ export class WalrusClientService {
   }
 
   /**
-   * Test if a blob ID is valid and accessible (lightweight validation)
+   * Test if a blob ID is valid and accessible using the proper Walrus SDK approach
    */
   async testBlobId(blobId: string): Promise<{ valid: boolean; error?: string; networkError?: boolean }> {
     try {
-      console.log('🧪 Testing blob ID format:', blobId);
+      console.log('🧪 Testing blob ID format and accessibility:', blobId);
       
-      // Basic validation only - no network calls to avoid DataView errors
+      // Basic format validation first
       if (!blobId || blobId.trim().length === 0) {
         return { valid: false, error: 'Empty blob ID' };
       }
@@ -735,13 +858,98 @@ export class WalrusClientService {
         return { valid: false, error: 'Invalid blob ID format (expected hex or base64-like)' };
       }
       
-      // For now, just validate format - don't try to read the blob to avoid DataView errors
-      // The actual loading will handle any data issues
-      console.log('✅ Blob ID format is valid');
-      return { valid: true };
+      // Try to access the file using getFiles API to verify it exists and is accessible
+      try {
+        const files = await this.walrusClient.getFiles({ ids: [blobId] });
+        
+        if (!files || files.length === 0) {
+          return { valid: false, error: 'Blob ID not found in Walrus storage' };
+        }
+        
+        const file = files[0];
+        if (!file) {
+          return { valid: false, error: 'File not found for the provided blob ID' };
+        }
+        
+        // Try to get basic file info without reading the full content
+        try {
+          // Check if we can get file metadata without reading bytes
+          const identifier = await file.getIdentifier?.();
+          const tags = await file.getTags?.();
+          
+          console.log('✅ Blob ID is valid and accessible', { 
+            hasIdentifier: !!identifier, 
+            hasTags: !!tags 
+          });
+          
+          return { valid: true };
+          
+        } catch (metadataError) {
+          // If metadata access fails, the file might still be valid but corrupted
+          console.warn('⚠️ Could not access file metadata, but file exists:', metadataError);
+          return { 
+            valid: true, 
+            error: 'File exists but metadata access failed - may be corrupted',
+            networkError: false
+          };
+        }
+        
+      } catch (accessError) {
+        console.error('❌ Failed to access blob in Walrus:', accessError);
+        
+        // Handle specific Walrus SDK errors
+        if (accessError instanceof RetryableWalrusClientError) {
+          console.log('Retryable error detected during blob test');
+          return { 
+            valid: true, // Assume valid if it's a retryable error
+            error: 'Temporary Walrus error - blob may be valid',
+            networkError: false
+          };
+        }
+        
+        // Handle DataView bounds errors specifically
+        if (accessError instanceof Error && accessError.message.includes('Offset is outside the bounds of the DataView')) {
+          return { 
+            valid: false, 
+            error: 'Data corruption detected in Walrus storage',
+            networkError: false
+          };
+        }
+        
+        // Handle DataView bounds errors specifically
+        if (accessError instanceof Error && accessError.message.includes('Offset is outside the bounds of the DataView')) {
+          return { 
+            valid: false, 
+            error: 'Data corruption detected in Walrus storage',
+            networkError: false
+          };
+        }
+        
+        // Check if it's a network error
+        const errorMessage = accessError instanceof Error ? accessError.message : 'Unknown error';
+        const isNetworkError = errorMessage.includes('Failed to fetch') || 
+                              errorMessage.includes('ERR_CONNECTION_CLOSED') ||
+                              errorMessage.includes('NetworkError') ||
+                              errorMessage.includes('net::');
+        
+        if (isNetworkError) {
+          console.warn('⚠️ Network error detected during blob test');
+          return { 
+            valid: true, // Assume valid if we can't verify due to network issues
+            error: 'Network connectivity issue - cannot verify blob ID',
+            networkError: true
+          };
+        }
+        
+        return { 
+          valid: false, 
+          error: `Blob access failed: ${errorMessage}`,
+          networkError: false
+        };
+      }
       
     } catch (error) {
-      console.error('❌ Blob ID format validation failed:', error);
+      console.error('❌ Blob ID validation failed:', error);
       
       // Check if it's a network error
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
