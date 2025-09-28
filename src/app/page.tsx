@@ -7,10 +7,10 @@ import dynamic from 'next/dynamic';
 const CanvasEditor = dynamic(() => import('@/components/Canvas/CanvasEditor'), {
   ssr: false,
   loading: () => (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-      <div className="text-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-        <p className="text-gray-600">Loading WalrusCanvas AI...</p>
+    <div className="min-h-screen flex items-center justify-center">
+      <div className="text-center retro-panel p-8">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[var(--retro-accent)] mx-auto mb-4"></div>
+        <p className="text-[var(--retro-text)] font-bold">Loading WalrusCanvas AI...</p>
       </div>
     </div>
   ),
@@ -18,7 +18,7 @@ const CanvasEditor = dynamic(() => import('@/components/Canvas/CanvasEditor'), {
 
 export default function Home() {
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen overflow-x-hidden">
       <CanvasEditor />
     </div>
   );

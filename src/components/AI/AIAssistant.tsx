@@ -124,12 +124,12 @@ export default function AIAssistant({ canvas }: AIAssistantProps) {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-medium text-gray-700">AI Assistant</h3>
+        <h3 className="text-sm font-bold text-[var(--retro-text)]">AI Assistant</h3>
         <button
           onClick={() => setIsOpen(!isOpen)}
-          className="p-1 text-gray-400 hover:text-gray-600"
+          className="retro-button p-1 hover:bg-[var(--retro-accent)]"
         >
-          <Sparkles className={cn("w-4 h-4", isOpen && "text-blue-500")} />
+          <Sparkles className={cn("w-4 h-4", isOpen && "text-[var(--retro-accent)]")} />
         </button>
       </div>
 
@@ -148,10 +148,10 @@ export default function AIAssistant({ canvas }: AIAssistantProps) {
                   }}
                   disabled={isLoading}
                   className={cn(
-                    "flex items-center space-x-2 p-2 text-xs rounded-lg transition-colors",
+                    "retro-button flex items-center space-x-2 p-2 text-xs transition-colors",
                     selectedTool === tool.id
-                      ? "bg-blue-100 text-blue-700"
-                      : "bg-gray-50 text-gray-600 hover:bg-gray-100",
+                      ? "bg-[var(--retro-accent)]"
+                      : "hover:bg-[var(--retro-accent)]",
                     isLoading && "opacity-50 cursor-not-allowed"
                   )}
                 >
@@ -164,14 +164,14 @@ export default function AIAssistant({ canvas }: AIAssistantProps) {
 
           {/* Prompt Input */}
           <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">
+            <label className="block text-xs font-bold text-[var(--retro-text)] mb-1">
               Prompt
             </label>
             <textarea
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
               placeholder="Describe what you want to create..."
-              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+              className="w-full px-3 py-2 text-sm border-2 border-[var(--retro-border)] rounded-md focus:outline-none focus:ring-2 focus:ring-[var(--retro-accent)] resize-none bg-[var(--retro-bg)] text-[var(--retro-text)]"
               rows={3}
             />
           </div>
@@ -183,7 +183,7 @@ export default function AIAssistant({ canvas }: AIAssistantProps) {
               if (tool) tool.action();
             }}
             disabled={isLoading || !prompt.trim()}
-            className="w-full flex items-center justify-center space-x-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="retro-button w-full flex items-center justify-center space-x-2 px-4 py-2 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[var(--retro-accent)]"
           >
             {isLoading ? (
               <Loader2 className="w-4 h-4 animate-spin" />
@@ -197,7 +197,7 @@ export default function AIAssistant({ canvas }: AIAssistantProps) {
 
           {/* Error Display */}
           {error && (
-            <div className="p-2 text-xs text-red-600 bg-red-50 rounded">
+            <div className="p-2 text-xs text-[var(--retro-text)] bg-[var(--retro-accent)] rounded border-2 border-[var(--retro-border)]">
               {error}
             </div>
           )}

@@ -3,10 +3,10 @@ import { Card } from 'pixel-retroui';
 function App() {
   return (
     <Card
-  bg="#ddceb4"
-  textColor="#30210b"
-  borderColor="#30210b"
-  shadowColor="#30210b"
+  bg="#ffffff"
+  textColor="#000000"
+  borderColor="#000000"
+  shadowColor="#000000"
   className="p-4 text-center"
 >
   <h2>Card Title</h2>

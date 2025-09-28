@@ -14,11 +14,13 @@ interface PropertyPanelProps {
   selectedObjects: fabric.Object[];
   onExport?: (format: 'json' | 'svg' | 'png') => any;
   onAddImage?: (url: string) => void;
-  selectedTool?: 'select' | 'text' | 'rectangle' | 'circle' | 'image';
+  selectedTool?: 'select' | 'text' | 'rectangle' | 'circle' | 'image' | 'pencil';
   activeAIPanel?: 'image' | null;
   onCloseAIPanel?: () => void;
   onLoad?: (designData: any) => void;
   onWalrusActionRef?: React.MutableRefObject<((action: 'save' | 'load') => void) | null>;
+  showWalletSection?: boolean;
+  showWalrusSection?: boolean;
 }
 
 export default function PropertyPanel({ 
@@ -30,7 +32,9 @@ export default function PropertyPanel({
   activeAIPanel = null,
   onCloseAIPanel,
   onLoad,
-  onWalrusActionRef
+  onWalrusActionRef,
+  showWalletSection = false,
+  showWalrusSection = false
 }: PropertyPanelProps) {
   const currentAccount = useCurrentAccount();
   const currentWallet = useCurrentWallet();
@@ -430,22 +434,23 @@ export default function PropertyPanel({
   return (
     <div className="h-full flex flex-col w-full min-w-0 max-w-full">
       {/* Header */}
-      <div className="p-4 border-b border-gray-200 flex-shrink-0 min-w-0">
-        <h2 className="text-lg font-semibold text-gray-900">Properties</h2>
+      <div className="p-4 border-b-2 border-[var(--retro-border)] flex-shrink-0 min-w-0">
+        <h2 className="text-lg font-bold text-[var(--retro-text)]">Properties</h2>
       </div>
 
       <div className="flex-1 overflow-y-auto w-full min-w-0 max-w-full">
-        {/* Wallet Information Section */}
-        <div className="p-4 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-purple-50">
+        {/* Wallet Information Section (optional) */}
+        {showWalletSection && (
+        <div className="p-4 border-b-2 border-[var(--retro-border)] retro-panel">
           <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-medium text-gray-700 flex items-center space-x-2">
-              <Wallet className="w-4 h-4 text-blue-600" />
+            <h3 className="text-sm font-bold text-[var(--retro-text)] flex items-center space-x-2">
+              <Wallet className="w-4 h-4 text-[var(--retro-accent)]" />
               <span>{isConnected ? 'Wallet Connected' : 'Wallet Status'}</span>
             </h3>
             {isConnected && (
               <button
                 onClick={() => {}} // Disconnect handled by dApp Kit ConnectButton
-                className="text-xs text-red-600 hover:text-red-800 font-medium"
+                className="text-xs text-[var(--retro-accent)] hover:text-[var(--retro-text)] font-medium retro-button px-2 py-1"
               >
                 Disconnect
               </button>
@@ -457,38 +462,38 @@ export default function PropertyPanel({
               {/* Wallet Name and Type */}
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-900">{walletName}</p>
-                  <p className="text-xs text-gray-500 capitalize">{walletType?.replace('-', ' ')}</p>
+                  <p className="text-sm font-bold text-[var(--retro-text)]">{walletName}</p>
+                  <p className="text-xs text-[var(--retro-text)] capitalize opacity-75">{walletType?.replace('-', ' ')}</p>
                 </div>
-                <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
-                  <Wallet className="w-4 h-4 text-white" />
+                <div className="w-8 h-8 bg-[var(--retro-accent)] rounded-lg flex items-center justify-center border-2 border-[var(--retro-border)]">
+                  <Wallet className="w-4 h-4 text-[var(--retro-text)]" />
                 </div>
               </div>
 
               {/* Address */}
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Address</label>
+                <label className="block text-xs font-bold text-[var(--retro-text)] mb-1">Address</label>
                 <div className="flex items-center space-x-2">
                   <input
                     type="text"
                     value={address || ''}
                     readOnly
-                    className="flex-1 px-2 py-1 text-xs bg-white border border-gray-300 rounded font-mono"
+                    className="flex-1 px-2 py-1 text-xs bg-[var(--retro-bg)] border-2 border-[var(--retro-border)] rounded font-mono text-[var(--retro-text)]"
                   />
                   <button
                     onClick={handleCopyAddress}
-                    className="p-1 text-gray-400 hover:text-gray-600 transition-colors"
+                    className="retro-button p-1 hover:bg-[var(--retro-accent)] transition-colors"
                     title="Copy address"
                   >
                     {copied ? (
-                      <CheckCircle className="w-4 h-4 text-green-600" />
+                      <CheckCircle className="w-4 h-4 text-[var(--retro-accent)]" />
                     ) : (
                       <Copy className="w-4 h-4" />
                     )}
                   </button>
                   <button
                     onClick={handleViewOnExplorer}
-                    className="p-1 text-gray-400 hover:text-gray-600 transition-colors"
+                    className="retro-button p-1 hover:bg-[var(--retro-accent)] transition-colors"
                     title="View on explorer"
                   >
                     <ExternalLink className="w-4 h-4" />
@@ -498,15 +503,15 @@ export default function PropertyPanel({
 
               {/* Balance */}
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Balance</label>
+                <label className="block text-xs font-bold text-[var(--retro-text)] mb-1">Balance</label>
                 <div className="flex items-center space-x-2">
-                  <span className="text-sm font-mono text-gray-900">
+                  <span className="text-sm font-mono text-[var(--retro-text)]">
                     {formatBalance(balance)} SUI
                   </span>
                   <button
                     onClick={handleRefreshBalance}
                     disabled={isRefreshing}
-                    className="p-1 text-gray-400 hover:text-gray-600 transition-colors disabled:opacity-50"
+                    className="retro-button p-1 hover:bg-[var(--retro-accent)] transition-colors disabled:opacity-50"
                     title="Refresh balance"
                   >
                     <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
@@ -516,19 +521,19 @@ export default function PropertyPanel({
 
               {/* Connection Status */}
               <div className="flex items-center space-x-2 text-xs">
-                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                <span className="text-green-700 font-medium">Connected</span>
+                <div className="w-2 h-2 bg-[var(--retro-accent)] rounded-full"></div>
+                <span className="text-[var(--retro-text)] font-bold">Connected</span>
               </div>
             </div>
           ) : (
             <div className="space-y-3">
               <div className="text-center py-4">
-                <Wallet className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-                <p className="text-sm text-gray-600 mb-2">No wallet connected</p>
-                <p className="text-xs text-gray-500 mb-3">Connect a wallet to view details here</p>
+                <Wallet className="w-8 h-8 text-[var(--retro-accent)] mx-auto mb-2" />
+                <p className="text-sm text-[var(--retro-text)] mb-2">No wallet connected</p>
+                <p className="text-xs text-[var(--retro-text)] mb-3 opacity-75">Connect a wallet to view details here</p>
                 <button
                   onClick={() => {}} // Connect handled by dApp Kit ConnectButton
-                  className="px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+                  className="retro-button px-3 py-1 text-xs hover:bg-[var(--retro-accent)] transition-colors"
                 >
                   Test Connect (Burner)
                 </button>
@@ -536,12 +541,14 @@ export default function PropertyPanel({
             </div>
           )}
         </div>
+        )}
 
-        {/* Walrus Storage Section */}
-        <div className="p-4 border-b border-gray-200 bg-gradient-to-r from-green-50 to-blue-50">
+        {/* Walrus Storage Section (optional) */}
+        {showWalrusSection && (
+        <div className="p-4 border-b-2 border-[var(--retro-border)] retro-panel">
           <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-medium text-gray-700 flex items-center space-x-2">
-              <Save className="w-4 h-4 text-green-600" />
+            <h3 className="text-sm font-bold text-[var(--retro-text)] flex items-center space-x-2">
+              <Save className="w-4 h-4 text-[var(--retro-accent)]" />
               <span>Walrus Storage</span>
             </h3>
           </div>
@@ -554,10 +561,10 @@ export default function PropertyPanel({
               }}
               disabled={!isConnected}
               className={cn(
-                "w-full flex items-center justify-center space-x-2 p-2 rounded-lg transition-colors text-sm",
+                "retro-button w-full flex items-center justify-center space-x-2 p-2 transition-colors text-sm",
                 isConnected
-                  ? "text-green-600 bg-green-50 hover:bg-green-100"
-                  : "text-gray-400 bg-gray-100 cursor-not-allowed"
+                  ? "hover:bg-[var(--retro-accent)]"
+                  : "opacity-50 cursor-not-allowed"
               )}
               title={!isConnected ? "Connect wallet to save designs" : "Save design to Walrus"}
             >
@@ -572,13 +579,14 @@ export default function PropertyPanel({
                 setWalrusPopupMode('load');
                 setShowWalrusPopup(true);
               }}
-              className="w-full flex items-center justify-center space-x-2 p-2 text-purple-600 bg-purple-50 hover:bg-purple-100 rounded-lg transition-colors text-sm"
+              className="retro-button w-full flex items-center justify-center space-x-2 p-2 transition-colors text-sm hover:bg-[var(--retro-accent)]"
             >
               <Upload className="w-4 h-4" />
               <span>Load from Walrus</span>
             </button>
           </div>
         </div>
+        )}
 
         {/* Show AI Image panel when active */}
         {activeAIPanel === 'image' ? (
@@ -1001,29 +1009,7 @@ export default function PropertyPanel({
           </div>
         )}
 
-                {/* Canvas Info */}
-                <div className="p-4 border-t border-gray-200">
-                  <h3 className="text-sm font-medium text-gray-700 mb-2">Canvas Info</h3>
-                  <div className="text-xs text-gray-600 space-y-1">
-                    <div>Objects: {canvas?.getObjects().length || 0}</div>
-                    <div>Selected: {selectedObjects.length}</div>
-                    <div>Size: {canvas?.getWidth()} × {canvas?.getHeight()}</div>
-                  </div>
-                  <div className="mt-2 space-y-1">
-                    <button
-                      onClick={debugCanvasState}
-                      className="w-full px-2 py-1 text-xs bg-yellow-100 text-yellow-800 rounded hover:bg-yellow-200"
-                    >
-                      Debug Canvas State
-                    </button>
-                    <button
-                      onClick={ensureObjectsVisible}
-                      className="w-full px-2 py-1 text-xs bg-green-100 text-green-800 rounded hover:bg-green-200"
-                    >
-                      Force Objects Visible
-                    </button>
-                  </div>
-                </div>
+                {/* Canvas Info removed per request */}
               </>
             )}
           </>

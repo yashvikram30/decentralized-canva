@@ -3,10 +3,10 @@ import { Button } from 'pixel-retroui';
 function App() {
   return (
     <Button
-  bg="#ddceb4"
-  textColor="#30210b"
-  borderColor="#30210b"
-  shadow="#30210b"
+  bg="#ffffff"
+  textColor="#000000"
+  borderColor="#000000"
+  shadow="#000000"
 >
   Themed Button
 </Button>

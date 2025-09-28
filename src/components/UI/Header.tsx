@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { Shield, Save, Download, Share2, Settings } from 'lucide-react';
+import { useCurrentAccount } from '@mysten/dapp-kit';
 import { cn } from '@/utils/helpers';
 import WalletStatus from '@/components/Wallet/WalletStatus';
 import WalletModal from '@/components/Wallet/WalletModal';
@@ -24,27 +25,29 @@ export default function Header({
   className 
 }: HeaderProps) {
   const [showWalletModal, setShowWalletModal] = useState(false);
+  const currentAccount = useCurrentAccount();
+  const isWalletConnected = !!currentAccount;
   return (
     <header className={cn(
-      "bg-white border-b border-gray-200 px-6 py-4",
+      "header px-6 py-4",
       className
     )}>
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-4">
           <div className="flex items-center space-x-2">
-            <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-sm">W</span>
+            <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center border-2 border-white">
+              <span className="text-black font-bold text-sm">W</span>
             </div>
-            <h1 className="text-xl font-bold text-gray-900">WalrusCanvas AI</h1>
+            <h1 className="text-xl font-bold text-white">WalrusCanvas AI</h1>
           </div>
           
-          <div className="flex items-center space-x-2 text-sm text-gray-500">
+          <div className="flex items-center space-x-2 text-sm text-white">
             <Shield className={cn(
               "w-4 h-4",
-              isEncrypted ? "text-green-500" : "text-gray-400"
+              isEncrypted ? "text-green-400" : "text-gray-300"
             )} />
             <span className={cn(
-              isEncrypted ? "text-green-600" : "text-gray-500"
+              isEncrypted ? "text-green-400" : "text-gray-300"
             )}>
               {isEncrypted ? 'Encrypted' : 'Not Encrypted'}
             </span>
@@ -55,38 +58,41 @@ export default function Header({
           {/* Wallet Status */}
           <WalletStatus onConnect={() => setShowWalletModal(true)} />
           
-          <div className="flex items-center space-x-2">
-            <button
-              onClick={onSave}
-              className="flex items-center space-x-2 px-4 py-2 text-sm font-medium text-white bg-green-600 border border-transparent rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 shadow-sm"
-            >
-              <Save className="w-4 h-4" />
-              <span>Save to Walrus</span>
-            </button>
+          {/* Action buttons - only show when wallet is not connected */}
+          {!isWalletConnected && (
+            <div className="flex items-center space-x-2">
+              <button
+                onClick={onSave}
+                className="header-button flex items-center space-x-2 px-4 py-2 text-sm font-medium"
+              >
+                <Save className="w-4 h-4" />
+                <span>Save to Walrus</span>
+              </button>
 
-            <button
-              onClick={onDownload}
-              className="flex items-center space-x-2 px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <Download className="w-4 h-4" />
-              <span>Download</span>
-            </button>
+              <button
+                onClick={onDownload}
+                className="header-secondary-button flex items-center space-x-2 px-3 py-2 text-sm font-medium"
+              >
+                <Download className="w-4 h-4" />
+                <span>Download</span>
+              </button>
 
-            <button
-              onClick={onShare}
-              className="flex items-center space-x-2 px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <Share2 className="w-4 h-4" />
-              <span>Share</span>
-            </button>
+              <button
+                onClick={onShare}
+                className="header-secondary-button flex items-center space-x-2 px-3 py-2 text-sm font-medium"
+              >
+                <Share2 className="w-4 h-4" />
+                <span>Share</span>
+              </button>
 
-            <button
-              onClick={onSettings}
-              className="p-2 text-gray-400 hover:text-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded-lg"
-            >
-              <Settings className="w-5 h-5" />
-            </button>
-          </div>
+              <button
+                onClick={onSettings}
+                className="p-2 text-white hover:text-gray-300 focus:outline-none rounded-lg"
+              >
+                <Settings className="w-5 h-5" />
+              </button>
+            </div>
+          )}
         </div>
       </div>
 

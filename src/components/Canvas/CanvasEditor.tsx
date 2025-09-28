@@ -5,9 +5,7 @@ import { fabric } from '@/lib/fabric';
 import { useCanvas } from '@/hooks/useCanvas';
 import Toolbar from './Toolbar';
 import PropertyPanel from './PropertyPanel';
-import AIAssistant from '../AI/AIAssistant';
 import AIImageModal from '../AI/AIImageModal';
-import EncryptionStatus from '../Privacy/EncryptionStatus';
 import SaveDialog from '../Storage/SaveDialog';
 import { ToastContainer } from '../UI/Toast';
 import { useToast } from '@/hooks/useToast';
@@ -27,9 +25,7 @@ export default function CanvasEditor({ className }: CanvasEditorProps) {
   // Removed AI Text modal usage
   const [showAIImageModal, setShowAIImageModal] = useState(false);
   const [showSaveDialog, setShowSaveDialog] = useState(false);
-  const [encryptionStatus, setEncryptionStatus] = useState<'public' | 'private' | 'team' | 'template'>('public');
-  const [isProcessingEncryption, setIsProcessingEncryption] = useState(false);
-  const [selectedTool, setSelectedTool] = useState<'select' | 'text' | 'rectangle' | 'circle' | 'image'>('select');
+  const [selectedTool, setSelectedTool] = useState<'select' | 'text' | 'rectangle' | 'circle' | 'image' | 'pencil'>('select');
   const [activeAIPanel, setActiveAIPanel] = useState<'image' | null>(null);
   
   const { toasts, success, removeToast } = useToast();
@@ -69,22 +65,6 @@ export default function CanvasEditor({ className }: CanvasEditorProps) {
     initializeFonts();
   }, []);
 
-  const handleEncryptionToggle = (newStatus: 'public' | 'private' | 'team' | 'template') => {
-    setIsProcessingEncryption(true);
-    setEncryptionStatus(newStatus);
-    
-    // Show toast notification
-    if (newStatus === 'private') {
-      success('🔐 Design Encrypted', 'Your design is now private and encrypted');
-    } else {
-      success('🔓 Design Made Public', 'Your design is now publicly accessible');
-    }
-    
-    // Simulate processing time
-    setTimeout(() => {
-      setIsProcessingEncryption(false);
-    }, 2000);
-  };
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -147,108 +127,94 @@ export default function CanvasEditor({ className }: CanvasEditorProps) {
   }
 
   return (
-    <div className={cn("flex h-screen bg-gray-50", className)}>
-      {/* Left Sidebar */}
-      <div className="w-64 bg-white shadow-lg flex flex-col">
-        <div className="p-4 border-b border-gray-200">
-          <h2 className="text-lg font-semibold text-gray-900">Tools</h2>
-        </div>
-        
-        <div className="flex-1 overflow-y-auto">
-          <Toolbar 
-            canvas={canvas}
-            drawingMode={drawingMode}
-            onAddText={addText}
-            onAddRectangle={addRectangle}
-            onAddCircle={addCircle}
-            onDeleteSelected={deleteSelected}
-            onClearCanvas={clearCanvas}
-            onSetBackgroundColor={setBackgroundColor}
-            onSetZoom={setZoom}
-            onSetDrawingMode={setDrawingMode}
-            onSetTool={setSelectedTool}
-            onAIImage={() => setActiveAIPanel('image')}
-            onSave={() => walrusActionRef.current?.('save')}
-            onLoad={() => walrusActionRef.current?.('load')}
-            zoom={zoom}
-            isWalletConnected={isConnected}
-          />
+    <div className={cn("h-screen", className)}>
+      {/* Top Bar - Full Width Header */}
+      <div className="w-full header relative overflow-hidden p-4">
+        <div className="relative px-24 py-6 flex justify-between items-center max-w-7xl mx-auto">
+          <div className="flex items-center space-x-8">
+            <h1 className="text-2xl font-bold text-white">WalrusCanvas AI</h1>
+          </div>
           
-          <div className="border-t border-gray-200 p-4">
-            <AIAssistant canvas={canvas} />
+          <div className="flex items-center space-x-6">
+            {/* Wallet Status - Simplified */}
+            <WalletStatus onConnect={() => {}} />
           </div>
         </div>
       </div>
 
-      {/* Main Canvas Area */}
-      <div className="flex-1 flex flex-col">
-
-        {/* Top Bar */}
-        <div className="bg-white p-4 border-b flex justify-between items-center">
-          <div className="flex items-center space-x-4">
-            <h1 className="text-xl font-bold text-gray-900">WalrusCanvas AI</h1>
-            <EncryptionStatus 
-              status={encryptionStatus}
-              onToggle={handleEncryptionToggle}
-              isProcessing={isProcessingEncryption}
-            />
+      {/* Main Content Area */}
+      <div className="h-[calc(100vh-80px)] flex">
+        {/* Left Sidebar */}
+        <div className="sidebar flex-none" style={{ width: 272 }}>
+          <div className="p-4 border-b-2 border-[var(--retro-border)]">
+            <h2 className="text-lg font-bold text-[var(--retro-text)]">Tools</h2>
           </div>
           
-          <div className="flex items-center space-x-4">
-            {/* Wallet Status */}
-            <WalletStatus onConnect={() => {}} />
+          <div className="flex-1 overflow-y-auto">
+            <Toolbar 
+              canvas={canvas}
+              drawingMode={drawingMode}
+              onAddText={addText}
+              onAddRectangle={addRectangle}
+              onAddCircle={addCircle}
+              onDeleteSelected={deleteSelected}
+              onClearCanvas={clearCanvas}
+              onSetBackgroundColor={setBackgroundColor}
+              onSetZoom={setZoom}
+              onSetDrawingMode={setDrawingMode}
+              onSetTool={setSelectedTool}
+              onAIImage={() => setActiveAIPanel('image')}
+              onSave={() => walrusActionRef.current?.('save')}
+              onLoad={() => walrusActionRef.current?.('load')}
+              zoom={zoom}
+              isWalletConnected={isConnected}
+            />
             
-            <div className="flex items-center space-x-2">
-              <span className="text-sm text-gray-500">Zoom: {Math.round(zoom * 100)}%</span>
-              <button
-                onClick={() => setZoom(1)}
-                className="px-3 py-1 text-sm bg-gray-100 hover:bg-gray-200 rounded"
-              >
-                Reset Zoom
-              </button>
+          </div>
+        </div>
+
+        {/* Main Canvas Area */}
+        <div className="flex-1 flex flex-col">
+          {/* Canvas Container */}
+          <div 
+            ref={containerRef}
+            className="flex-1 flex items-center justify-center p-8 overflow-hidden"
+          >
+            <div ref={canvasContainerRef} className="relative">
+            <div className="retro-panel p-4 relative">
+              {!isReady && (
+                <div className="absolute inset-0 bg-[var(--retro-bg)] bg-opacity-75 flex items-center justify-center rounded-lg z-10">
+                  <div className="text-center">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[var(--retro-accent)] mx-auto mb-2"></div>
+                    <p className="text-sm text-[var(--retro-text)]">Initializing Canvas...</p>
+                  </div>
+                </div>
+              )}
+              <canvas 
+                ref={canvasRef} 
+                className="border-2 border-[var(--retro-border)] rounded block" 
+                style={{ display: 'block' }}
+              />
+            </div>
+            
             </div>
           </div>
         </div>
-        
-        {/* Canvas Container */}
-        <div 
-          ref={containerRef}
-          className="flex-1 bg-gray-100 flex items-center justify-center p-8 overflow-hidden"
-        >
-          <div ref={canvasContainerRef} className="relative">
-          <div className="bg-white rounded-lg shadow-lg p-4 relative">
-            {!isReady && (
-              <div className="absolute inset-0 bg-white bg-opacity-75 flex items-center justify-center rounded-lg z-10">
-                <div className="text-center">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
-                  <p className="text-sm text-gray-600">Initializing Canvas...</p>
-                </div>
-              </div>
-            )}
-            <canvas 
-              ref={canvasRef} 
-              className="border border-gray-200 rounded block mx-auto" 
-              style={{ display: 'block' }}
-            />
-          </div>
-          
-          </div>
-        </div>
-      </div>
 
-      {/* Right Sidebar - Properties */}
-      <div className="w-80 bg-white shadow-lg flex-shrink-0 min-w-80 max-w-80">
-        <PropertyPanel 
-          canvas={canvas}
-          selectedObjects={selectedObjects}
-          onExport={exportCanvas}
-          onAddImage={addImage}
-          selectedTool={selectedTool}
-          activeAIPanel={activeAIPanel}
-          onCloseAIPanel={() => setActiveAIPanel(null)}
-          onLoad={loadCanvas}
-          onWalrusActionRef={walrusActionRef}
-        />
+        {/* Right Sidebar - Properties */}
+        <div className="sidebar flex-none" style={{ width: 320 }}>
+          <PropertyPanel 
+            canvas={canvas}
+            selectedObjects={selectedObjects}
+            onExport={exportCanvas}
+            onAddImage={addImage}
+            selectedTool={selectedTool}
+            activeAIPanel={activeAIPanel}
+            onCloseAIPanel={() => setActiveAIPanel(null)}
+            onLoad={loadCanvas}
+            onWalrusActionRef={walrusActionRef}
+          />
+        </div>
       </div>
 
       {/* AI Modals */}

@@ -19,7 +19,7 @@ export default function WalletStatus({ onConnect: _onConnect }: WalletStatusProp
 
   const isConnected = !!currentAccount;
   const address = currentAccount?.address || null;
-  const walletName = currentWallet && 'name' in currentWallet ? currentWallet.name as string : 'Connected Wallet';
+  const walletName = currentWallet && 'name' in currentWallet ? currentWallet.name as string : 'Wallet';
   const walletType = currentWallet && 'name' in currentWallet ? 
     (currentWallet.name as string).toLowerCase().includes('slush') ? 'slush' :
     (currentWallet.name as string).toLowerCase().includes('sui wallet') ? 'sui-wallet' :
@@ -82,74 +82,21 @@ export default function WalletStatus({ onConnect: _onConnect }: WalletStatusProp
     return (
       <ConnectButton 
         connectText="Connect Wallet"
-        className="!bg-blue-600 !text-white !px-4 !py-2 !rounded-lg !font-medium hover:!bg-blue-700 !transition-colors"
+        className="retro-button !w-[180px] !h-10 !px-4 !py-0 !font-bold hover:!bg-[var(--retro-accent)] !transition-colors !text-base !leading-none !flex !items-center !justify-center"
       />
     );
   }
 
   return (
-    <div className="flex items-center space-x-3">
-      {/* Wallet Info */}
-      <div className="flex items-center space-x-2 px-3 py-2 bg-green-50 border border-green-200 rounded-lg">
-        <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-        <span className="text-sm font-medium text-green-800">
-          {walletName || 'Connected'}
-        </span>
-        {walletType === 'unsafe-burner' && (
-          <span className="text-xs text-orange-600 bg-orange-100 px-2 py-0.5 rounded">
-            Dev
-          </span>
-        )}
-      </div>
-
-      {/* Address */}
-      <div className="flex items-center space-x-2 px-3 py-2 bg-gray-100 rounded-lg">
-        <span className="text-sm font-mono text-gray-700">
-          {formatAddress(address!)}
-        </span>
-        <button
-          onClick={handleCopyAddress}
-          className="p-1 text-gray-500 hover:text-gray-700 transition-colors"
-          title="Copy address"
-        >
-          {copied ? (
-            <Check className="w-3 h-3 text-green-600" />
-          ) : (
-            <Copy className="w-3 h-3" />
-          )}
-        </button>
-        <button
-          onClick={handleViewOnExplorer}
-          className="p-1 text-gray-500 hover:text-gray-700 transition-colors"
-          title="View on explorer"
-        >
-          <ExternalLink className="w-3 h-3" />
-        </button>
-      </div>
-
-      {/* Balance */}
-      <div className="flex items-center space-x-2 px-3 py-2 bg-blue-50 border border-blue-200 rounded-lg">
-        <span className="text-sm text-blue-800">
-          {formatBalance(balance)} SUI
-        </span>
-        <button
-          onClick={handleRefreshBalance}
-          disabled={isRefreshing}
-          className="p-1 text-blue-600 hover:text-blue-700 transition-colors disabled:opacity-50"
-          title="Refresh balance"
-        >
-          <RefreshCw className={cn("w-3 h-3", isRefreshing && "animate-spin")} />
-        </button>
-      </div>
-
-      {/* Disconnect Button */}
+    <div className="flex items-center space-x-4">
+      {/* Disconnect Button - Only show disconnect when connected */}
       <button
         onClick={() => disconnectWallet()}
         disabled={isDisconnecting}
-        className="flex items-center space-x-2 px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-60"
+        className="retro-button w-[180px] h-10 px-4 py-0 disabled:opacity-60 hover:bg-[var(--retro-accent)] font-bold flex items-center justify-center space-x-2 leading-none"
         title="Disconnect wallet"
       >
-        <LogOut className="w-4 h-4" />
+        <LogOut className="w-5 h-5" />
         <span>{isDisconnecting ? 'Disconnecting...' : 'Disconnect'}</span>
       </button>
     </div>

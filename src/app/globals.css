@@ -8,9 +8,16 @@
 @import '../styles/fonts.css';
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #97f0e5;
+  --foreground: #000000;
   --font-inter: 'Inter', system-ui, sans-serif;
+  --retro-bg: #ffffff;
+  --retro-text: #000000;
+  --retro-border: #000000;
+  --retro-shadow: #000000;
+  --retro-accent: #97f0e5;
+  --header-bg: #000000;
+  --header-text: #ffffff;
 }
 
 @layer base {
@@ -19,8 +26,8 @@
   }
   
   body {
-    background-color: white;
-    color: #111827;
+    background-color: var(--background);
+    color: var(--foreground);
     font-family: 'Inter', system-ui, sans-serif;
   }
   
@@ -32,56 +39,137 @@
 @layer components {
   .btn-primary {
     padding: 0.5rem 1rem;
-    background-color: #2563eb;
-    color: white;
+    background-color: var(--retro-bg);
+    color: var(--retro-text);
+    border: 2px solid var(--retro-border);
     border-radius: 0.375rem;
     transition: all 0.2s;
+    box-shadow: 2px 2px 0 var(--retro-shadow);
   }
   
   .btn-primary:hover {
-    background-color: #1d4ed8;
+    background-color: var(--retro-accent);
+    transform: translateY(-1px);
+    box-shadow: 3px 3px 0 var(--retro-shadow);
   }
   
   .btn-secondary {
     padding: 0.5rem 1rem;
-    background-color: #e5e7eb;
-    color: #111827;
+    background-color: var(--background);
+    color: var(--retro-text);
+    border: 2px solid var(--retro-border);
     border-radius: 0.375rem;
     transition: all 0.2s;
+    box-shadow: 2px 2px 0 var(--retro-shadow);
   }
   
   .btn-secondary:hover {
-    background-color: #d1d5db;
+    background-color: var(--retro-bg);
+    transform: translateY(-1px);
+    box-shadow: 3px 3px 0 var(--retro-shadow);
   }
   
   .input-field {
     width: 100%;
     padding: 0.5rem 0.75rem;
     font-size: 0.875rem;
-    border: 1px solid #d1d5db;
+    border: 2px solid var(--retro-border);
     border-radius: 0.375rem;
+    background-color: var(--retro-bg);
+    color: var(--retro-text);
   }
   
   .input-field:focus {
     outline: none;
-    border-color: #2563eb;
-    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+    border-color: var(--retro-accent);
+    box-shadow: 0 0 0 3px rgba(195, 129, 181, 0.2);
   }
   
   .card {
-    background-color: white;
+    background-color: var(--retro-bg);
     border-radius: 0.5rem;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-    border: 1px solid #e5e7eb;
+    box-shadow: 4px 4px 0 var(--retro-shadow);
+    border: 2px solid var(--retro-border);
     padding: 1rem;
   }
   
   .sidebar {
-    background-color: white;
-    border-right: 1px solid #e5e7eb;
+    background-color: var(--retro-bg);
+    border-right: 2px solid var(--retro-border);
     height: 100%;
     display: flex;
     flex-direction: column;
+    flex: 0 0 auto;
+    min-width: 0;
+    box-shadow: 2px 0 4px rgba(48, 33, 11, 0.1);
+  }
+  
+  .retro-panel {
+    background-color: var(--retro-bg);
+    border: 2px solid var(--retro-border);
+    border-radius: 0.5rem;
+    box-shadow: 4px 4px 0 var(--retro-shadow);
+    padding: 1rem;
+  }
+  
+  .retro-button {
+    background-color: var(--retro-bg);
+    color: var(--retro-text);
+    border: 2px solid var(--retro-border);
+    border-radius: 0.375rem;
+    padding: 0.5rem 1rem;
+    transition: all 0.2s;
+    box-shadow: 2px 2px 0 var(--retro-shadow);
+    font-weight: 500;
+  }
+  
+  .retro-button:hover {
+    background-color: var(--retro-accent);
+    transform: translateY(-1px);
+    box-shadow: 3px 3px 0 var(--retro-shadow);
+  }
+  
+  .retro-button:active {
+    transform: translateY(0);
+    box-shadow: 1px 1px 0 var(--retro-shadow);
+  }
+  
+  .header {
+    background-color: var(--header-bg);
+    color: var(--header-text);
+    border-bottom: 2px solid var(--retro-border);
+  }
+  
+  .header-button {
+    background-color: var(--header-text);
+    color: var(--header-bg);
+    border: 2px solid var(--header-text);
+    border-radius: 0.375rem;
+    padding: 0.5rem 1rem;
+    transition: all 0.2s;
+    font-weight: 500;
+  }
+  
+  .header-button:hover {
+    background-color: var(--retro-accent);
+    color: var(--header-bg);
+    transform: translateY(-1px);
+  }
+  
+  .header-secondary-button {
+    background-color: transparent;
+    color: var(--header-text);
+    border: 2px solid var(--header-text);
+    border-radius: 0.375rem;
+    padding: 0.5rem 1rem;
+    transition: all 0.2s;
+    font-weight: 500;
+  }
+  
+  .header-secondary-button:hover {
+    background-color: var(--header-text);
+    color: var(--header-bg);
+    transform: translateY(-1px);
   }
 }
 

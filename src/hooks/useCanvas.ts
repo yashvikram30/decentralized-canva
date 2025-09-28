@@ -2,7 +2,7 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import { fabric } from '@/lib/fabric';
 import { CANVAS_CONFIG } from '@/utils/constants';
 
-export type DrawingMode = 'select' | 'rectangle' | 'circle' | 'text' | null;
+export type DrawingMode = 'select' | 'rectangle' | 'circle' | 'text' | 'pencil' | null;
 
 export interface CanvasState {
   canvas: fabric.Canvas | null;
@@ -14,6 +14,8 @@ export interface CanvasState {
   isDrawing: boolean;
   startPoint: { x: number; y: number } | null;
   currentShape: fabric.Object | null;
+  isPencilDrawing: boolean;
+  pencilPath: fabric.Path | null;
 }
 
 export function useCanvas(containerRef: React.RefObject<HTMLDivElement | null>) {
@@ -27,6 +29,8 @@ export function useCanvas(containerRef: React.RefObject<HTMLDivElement | null>) 
     isDrawing: false,
     startPoint: null,
     currentShape: null,
+    isPencilDrawing: false,
+    pencilPath: null,
   });
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -64,6 +68,12 @@ export function useCanvas(containerRef: React.RefObject<HTMLDivElement | null>) 
 
       // Keep a direct ref for proper cleanup even if state closure changes
       fabricCanvasRef.current = canvas;
+
+      // Initialize free drawing brush for pencil mode upfront
+      canvas.isDrawingMode = false;
+      canvas.freeDrawingBrush = new fabric.PencilBrush(canvas);
+      canvas.freeDrawingBrush.color = '#000000';
+      canvas.freeDrawingBrush.width = 2;
 
       // Set up event listeners
       canvas.on('selection:created', (e) => {
@@ -163,8 +173,8 @@ export function useCanvas(containerRef: React.RefObject<HTMLDivElement | null>) 
         if (zoom > 20) zoom = 20;
         if (zoom < 0.01) zoom = 0.01;
         
-        // Get the pointer position relative to the canvas
-        const pointer = canvas.getPointer(opt.e, true);
+        // Get the pointer position relative to the canvas (respect zoom/transform)
+        const pointer = canvas.getPointer(opt.e);
         canvas.zoomToPoint(pointer, zoom);
         setState(prev => ({ ...prev, zoom }));
         opt.e.preventDefault();
@@ -176,6 +186,11 @@ export function useCanvas(containerRef: React.RefObject<HTMLDivElement | null>) 
         const currentState = stateRef.current;
         console.log('Mouse down - drawing mode:', currentState.drawingMode);
         
+        // If pencil mode is active, let Fabric free drawing handle it
+        if (currentState.drawingMode === 'pencil') {
+          return;
+        }
+
         // If we're in select mode or clicking on an existing object, don't create new shapes
         if (currentState.drawingMode === 'select' || opt.target) {
           console.log('In select mode or clicked on existing object, not creating new shape');
@@ -187,8 +202,8 @@ export function useCanvas(containerRef: React.RefObject<HTMLDivElement | null>) 
         canvas.discardActiveObject();
         canvas.renderAll();
 
-        // Use the correct pointer calculation method
-        const pointer = canvas.getPointer(opt.e, true);
+        // Use the correct pointer calculation method (respect zoom/transform)
+        const pointer = canvas.getPointer(opt.e);
         console.log('Starting to draw at:', pointer);
         
         let newShape: fabric.Object;
@@ -262,9 +277,13 @@ export function useCanvas(containerRef: React.RefObject<HTMLDivElement | null>) 
 
       canvas.on('mouse:move', (opt) => {
         const currentState = stateRef.current;
+        
+        // In pencil mode, Fabric free drawing handles rendering
+        if (currentState.drawingMode === 'pencil') return;
+        
         if (!currentState.isDrawing || !currentState.currentShape || currentState.drawingMode === 'select') return;
         
-        const pointer = canvas.getPointer(opt.e, true);
+        const pointer = canvas.getPointer(opt.e);
         const { x: startX, y: startY } = currentState.startPoint!;
         
         if (currentState.drawingMode === 'rectangle') {
@@ -321,9 +340,13 @@ export function useCanvas(containerRef: React.RefObject<HTMLDivElement | null>) 
 
       canvas.on('mouse:up', (opt) => {
         const currentState = stateRef.current;
+        
+        // In pencil mode, Fabric free drawing handles completion
+        if (currentState.drawingMode === 'pencil') return;
+        
         if (!currentState.isDrawing || !currentState.currentShape || currentState.drawingMode === 'select') return;
         
-        const pointer = canvas.getPointer(opt.e, true);
+        const pointer = canvas.getPointer(opt.e);
         const { x: startX, y: startY } = currentState.startPoint!;
         
         // Check minimum size
@@ -723,22 +746,28 @@ export function useCanvas(containerRef: React.RefObject<HTMLDivElement | null>) 
     if (!state.canvas) return;
 
     const canvasElement = state.canvas.getElement();
-    const container = containerRef.current;
-    if (!container) return;
+    const wrapper = canvasElement.parentElement as HTMLDivElement | null;
+    if (!wrapper) return;
 
-    // Remove absolute positioning to fix coordinate issues
-    canvasElement.style.position = 'relative';
-    canvasElement.style.left = 'auto';
-    canvasElement.style.top = 'auto';
-    canvasElement.style.margin = '0 auto';
-  }, [state.canvas, containerRef]);
+    // Ensure Fabric-managed canvases keep absolute positioning for correct hit-testing
+    canvasElement.style.position = 'absolute';
+    canvasElement.style.left = '0px';
+    canvasElement.style.top = '0px';
+    canvasElement.style.margin = '0';
+
+    // Center the wrapper; outer container already uses flex center
+    wrapper.style.display = 'inline-block';
+    wrapper.style.margin = '0 auto';
+  }, [state.canvas]);
 
   const resetDrawingState = useCallback(() => {
     setState(prev => ({
       ...prev,
       isDrawing: false,
       startPoint: null,
-      currentShape: null
+      currentShape: null,
+      isPencilDrawing: false,
+      pencilPath: null
     }));
   }, []);
 
@@ -761,6 +790,15 @@ export function useCanvas(containerRef: React.RefObject<HTMLDivElement | null>) 
     
     // Update canvas cursor based on mode
     if (state.canvas) {
+      // Configure Fabric free drawing for pencil mode
+      if (mode === 'pencil') {
+        state.canvas.isDrawingMode = true;
+        state.canvas.freeDrawingBrush = new fabric.PencilBrush(state.canvas);
+        state.canvas.freeDrawingBrush.color = '#000000';
+        state.canvas.freeDrawingBrush.width = 2;
+      } else {
+        state.canvas.isDrawingMode = false;
+      }
       const cursor = mode === 'select' ? 'default' : 'crosshair';
       state.canvas.defaultCursor = cursor;
       state.canvas.hoverCursor = cursor;
@@ -778,6 +816,11 @@ export function useCanvas(containerRef: React.RefObject<HTMLDivElement | null>) 
         if (current.isDrawing && current.currentShape) {
           try {
             canvasInstance.remove(current.currentShape);
+          } catch {}
+        }
+        if (current.isPencilDrawing && current.pencilPath) {
+          try {
+            canvasInstance.remove(current.pencilPath);
           } catch {}
         }
         try {

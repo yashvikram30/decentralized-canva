@@ -13,11 +13,14 @@ import {
   RotateCcw,
   Download,
   MousePointer,
+  X,
   Sparkles,
   Wand2,
   Upload,
-  Save
+  Save,
+  Pencil
 } from 'lucide-react';
+import CollapsibleSection from '../retro-ui/collapsible-section';
 import { fabric } from '@/lib/fabric';
 import { cn } from '@/utils/helpers';
 import { DrawingMode } from '@/hooks/useCanvas';
@@ -34,7 +37,7 @@ interface ToolbarProps {
   onSetBackgroundColor: (color: string) => void;
   onSetZoom: (zoom: number) => void;
   onSetDrawingMode: (mode: DrawingMode) => void;
-  onSetTool: (tool: 'select' | 'text' | 'rectangle' | 'circle' | 'image') => void;
+  onSetTool: (tool: 'select' | 'text' | 'rectangle' | 'circle' | 'image' | 'pencil') => void;
   onAIText?: () => void;
   onAIImage?: () => void;
   onSave?: () => void;
@@ -94,46 +97,61 @@ export default function Toolbar({
   };
 
   const colors = [
-    '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7',
-    '#DDA0DD', '#98D8C8', '#F7DC6F', '#BB8FCE', '#85C1E9'
+    // Row 1: Primary Colors (10 colors) - Very vibrant
+    '#000000', '#FFFFFF', '#FF0000', '#00FF00', '#0000FF', '#FFFF00', '#FF00FF', '#00FFFF', '#FF8000', '#800080',
+    // Row 2: Secondary Colors (10 colors) - Bright and clear
+    '#FF4444', '#00CCCC', '#4488FF', '#44FF44', '#FFFF44', '#FF44FF', '#44FFFF', '#FF8844', '#8844FF', '#FF44CC',
+    // Row 3: Vibrant Colors (10 colors) - High saturation
+    '#FF1493', '#32CD32', '#FF6347', '#00CED1', '#FF4500', '#9370DB', '#20B2AA', '#FF69B4', '#FFD700', '#FFA500',
+    // Row 4: Pastel Colors (10 colors) - Soft but visible
+    '#FFB6C1', '#98FB98', '#87CEEB', '#DDA0DD', '#F0E68C', '#FFA07A', '#20B2AA', '#FFC0CB', '#D8BFD8', '#F5DEB3',
+    // Row 5: Dark Colors (10 colors) - Rich and deep
+    '#8B0000', '#006400', '#00008B', '#B8860B', '#800080', '#008B8B', '#2F4F4F', '#8B4513', '#2E8B57', '#4B0082'
   ];
 
   return (
-    <div className="p-4 space-y-4">
-      {/* Selection Tool */}
-      <div>
-        <h3 className="text-sm font-medium text-gray-700 mb-3">Selection</h3>
-        <div className="grid grid-cols-1 gap-2">
+    <div className="px-4 py-6">
+      {/* Drawing Tools */}
+      <CollapsibleSection title="Drawing Tools" defaultExpanded={false}>
+        <div className="grid grid-cols-2 gap-4">
           <button
             onClick={() => {
               onSetDrawingMode('select');
               onSetTool('select');
             }}
             className={cn(
-              "flex items-center justify-center p-3 text-gray-600 rounded-lg transition-colors",
+              "retro-button flex items-center justify-center p-4 transition-colors text-center",
               drawingMode === 'select' 
-                ? "bg-blue-100 border-2 border-blue-300" 
-                : "bg-gray-50 hover:bg-gray-100 border-2 border-gray-200"
+                ? "bg-[var(--retro-accent)]" 
+                : "hover:bg-[var(--retro-accent)]"
             )}
             title="Select Tool"
           >
             <MousePointer className="w-5 h-5" />
-            <span className="ml-2 text-sm font-medium">Select</span>
           </button>
-        </div>
-      </div>
-
-      {/* Drawing Tools */}
-      <div>
-        <h3 className="text-sm font-medium text-gray-700 mb-3">Drawing Tools</h3>
-        <div className="grid grid-cols-2 gap-2">
+          
+          <button
+            onClick={() => {
+              onSetDrawingMode('pencil');
+              onSetTool('pencil');
+            }}
+            className={cn(
+              "retro-button flex items-center justify-center p-4 transition-colors text-center",
+              drawingMode === 'pencil' 
+                ? "bg-[var(--retro-accent)]" 
+                : "hover:bg-[var(--retro-accent)]"
+            )}
+            title="Pencil Tool"
+          >
+            <Pencil className="w-5 h-5" />
+          </button>
           <button
             onClick={handleAddText}
             className={cn(
-              "flex items-center justify-center p-3 text-gray-600 rounded-lg transition-colors",
+              "retro-button flex items-center justify-center p-4 transition-colors text-center",
               drawingMode === 'text' 
-                ? "bg-purple-100 border-2 border-purple-300" 
-                : "bg-gray-50 hover:bg-gray-100 border-2 border-gray-200"
+                ? "bg-[var(--retro-accent)]" 
+                : "hover:bg-[var(--retro-accent)]"
             )}
             title="Add Text"
           >
@@ -147,10 +165,10 @@ export default function Toolbar({
               onSetTool('rectangle');
             }}
             className={cn(
-              "flex items-center justify-center p-3 text-gray-600 rounded-lg transition-colors",
+              "retro-button flex items-center justify-center p-4 transition-colors text-center",
               drawingMode === 'rectangle' 
-                ? "bg-red-100 border-2 border-red-300" 
-                : "bg-gray-50 hover:bg-gray-100 border-2 border-gray-200"
+                ? "bg-[var(--retro-accent)]" 
+                : "hover:bg-[var(--retro-accent)]"
             )}
             title="Draw Rectangle"
           >
@@ -164,10 +182,10 @@ export default function Toolbar({
               onSetTool('circle');
             }}
             className={cn(
-              "flex items-center justify-center p-3 text-gray-600 rounded-lg transition-colors",
+              "retro-button flex items-center justify-center p-4 transition-colors text-center",
               drawingMode === 'circle' 
-                ? "bg-green-100 border-2 border-green-300" 
-                : "bg-gray-50 hover:bg-gray-100 border-2 border-gray-200"
+                ? "bg-[var(--retro-accent)]" 
+                : "hover:bg-[var(--retro-accent)]"
             )}
             title="Draw Circle"
           >
@@ -176,153 +194,240 @@ export default function Toolbar({
           
           <button
             onClick={handleImageClick}
-            className="flex items-center justify-center p-3 text-gray-600 rounded-lg transition-colors bg-gray-50 hover:bg-gray-100 border-2 border-gray-200"
+            className="retro-button flex items-center justify-center p-4 transition-colors hover:bg-[var(--retro-accent)] text-center"
             title="Add Image"
           >
             <Image className="w-5 h-5" />
           </button>
         </div>
-      </div>
+      </CollapsibleSection>
 
       {/* AI Tools */}
-      {onAIText || onAIImage ? (
-        <div>
-          <h3 className="text-sm font-medium text-gray-700 mb-3">AI Tools</h3>
-          <div className="space-y-2">
+      {(onAIText || onAIImage) && (
+        <CollapsibleSection title="AI Tools" defaultExpanded={false}>
+          <div className="space-y-4">
             {onAIText && (
               <button
                 onClick={onAIText}
-                className="w-full flex items-center justify-center space-x-2 p-3 text-purple-600 bg-purple-50 hover:bg-purple-100 rounded-lg transition-colors"
+                className="retro-button w-full flex items-center justify-center space-x-3 p-4 transition-colors hover:bg-[var(--retro-accent)] text-center"
                 title="AI Text Generation"
               >
                 <Sparkles className="w-5 h-5" />
-                <span className="text-sm font-medium">AI Text</span>
+                <span className="text-sm font-bold text-center">AI Text</span>
               </button>
             )}
             
             {onAIImage && (
               <button
                 onClick={onAIImage}
-                className="w-full flex items-center justify-center space-x-2 p-3 text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors"
+                className="retro-button w-full flex items-center justify-center space-x-3 p-4 transition-colors hover:bg-[var(--retro-accent)] text-center"
                 title="AI Image Generation"
               >
                 <Wand2 className="w-5 h-5" />
-                <span className="text-sm font-medium">AI Image</span>
+                <span className="text-sm font-bold text-center">AI Image</span>
               </button>
             )}
           </div>
-        </div>
-      ) : null}
+        </CollapsibleSection>
+      )}
 
 
       {/* Color Palette */}
-      <div>
-        <h3 className="text-sm font-medium text-gray-700 mb-3">Background Color</h3>
-        <div className="grid grid-cols-5 gap-2">
-          {colors.map((color) => (
-            <button
-              key={color}
-              onClick={() => onSetBackgroundColor(color)}
-              className={cn(
-                "w-8 h-8 rounded-lg border-2 hover:scale-110 transition-transform",
-                canvas?.backgroundColor === color ? "border-gray-400" : "border-gray-200"
-              )}
-              style={{ backgroundColor: color }}
-              title={color}
-            />
-          ))}
+      <CollapsibleSection title="Color Palette" defaultExpanded={false}>
+        <div className="space-y-3">
+          {/* Row 1: Primary Colors */}
+          <div className="grid grid-cols-5 gap-2">
+            {colors.slice(0, 10).map((color) => (
+              <button
+                key={color}
+                onClick={() => onSetBackgroundColor(color)}
+                className={cn(
+                  "w-8 h-8 rounded-full border-2 hover:scale-110 transition-transform shadow-sm",
+                  canvas?.backgroundColor === color ? "border-[var(--retro-accent)] ring-2 ring-[var(--retro-accent)]" : "border-gray-600"
+                )}
+                style={{ 
+                  backgroundColor: color,
+                  minWidth: '32px',
+                  minHeight: '32px'
+                }}
+                title={color}
+              />
+            ))}
+          </div>
+          
+          {/* Row 2: Secondary Colors */}
+          <div className="grid grid-cols-5 gap-2">
+            {colors.slice(10, 20).map((color) => (
+              <button
+                key={color}
+                onClick={() => onSetBackgroundColor(color)}
+                className={cn(
+                  "w-8 h-8 rounded-full border-2 hover:scale-110 transition-transform shadow-sm",
+                  canvas?.backgroundColor === color ? "border-[var(--retro-accent)] ring-2 ring-[var(--retro-accent)]" : "border-gray-600"
+                )}
+                style={{ 
+                  backgroundColor: color,
+                  minWidth: '32px',
+                  minHeight: '32px'
+                }}
+                title={color}
+              />
+            ))}
+          </div>
+          
+          {/* Row 3: Vibrant Colors */}
+          <div className="grid grid-cols-5 gap-2">
+            {colors.slice(20, 30).map((color) => (
+              <button
+                key={color}
+                onClick={() => onSetBackgroundColor(color)}
+                className={cn(
+                  "w-8 h-8 rounded-full border-2 hover:scale-110 transition-transform shadow-sm",
+                  canvas?.backgroundColor === color ? "border-[var(--retro-accent)] ring-2 ring-[var(--retro-accent)]" : "border-gray-600"
+                )}
+                style={{ 
+                  backgroundColor: color,
+                  minWidth: '32px',
+                  minHeight: '32px'
+                }}
+                title={color}
+              />
+            ))}
+          </div>
+          
+          {/* Row 4: Pastel Colors */}
+          <div className="grid grid-cols-5 gap-2">
+            {colors.slice(30, 40).map((color) => (
+              <button
+                key={color}
+                onClick={() => onSetBackgroundColor(color)}
+                className={cn(
+                  "w-8 h-8 rounded-full border-2 hover:scale-110 transition-transform shadow-sm",
+                  canvas?.backgroundColor === color ? "border-[var(--retro-accent)] ring-2 ring-[var(--retro-accent)]" : "border-gray-600"
+                )}
+                style={{ 
+                  backgroundColor: color,
+                  minWidth: '32px',
+                  minHeight: '32px'
+                }}
+                title={color}
+              />
+            ))}
+          </div>
+          
+          {/* Row 5: Dark Colors */}
+          <div className="grid grid-cols-5 gap-2">
+            {colors.slice(40, 50).map((color) => (
+              <button
+                key={color}
+                onClick={() => onSetBackgroundColor(color)}
+                className={cn(
+                  "w-8 h-8 rounded-full border-2 hover:scale-110 transition-transform shadow-sm",
+                  canvas?.backgroundColor === color ? "border-[var(--retro-accent)] ring-2 ring-[var(--retro-accent)]" : "border-gray-600"
+                )}
+                style={{ 
+                  backgroundColor: color,
+                  minWidth: '32px',
+                  minHeight: '32px'
+                }}
+                title={color}
+              />
+            ))}
+          </div>
         </div>
-      </div>
+      </CollapsibleSection>
 
       {/* Zoom Controls */}
-      <div>
-        <h3 className="text-sm font-medium text-gray-700 mb-3">Zoom</h3>
-        <div className="flex items-center space-x-2">
-          <button
-            onClick={handleZoomOut}
-            className="p-2 text-gray-600 bg-gray-50 hover:bg-gray-100 rounded"
-            title="Zoom Out"
-          >
-            <ZoomOut className="w-4 h-4" />
-          </button>
+      <CollapsibleSection title="Zoom" defaultExpanded={false}>
+        <div className="space-y-4">
+          <div className="flex items-center space-x-3">
+            <button
+              onClick={handleZoomOut}
+              className="retro-button p-3 hover:bg-[var(--retro-accent)] text-center"
+              title="Zoom Out"
+            >
+              <ZoomOut className="w-5 h-5" />
+            </button>
+            
+            <div className="flex-1 text-center">
+              <span className="text-lg text-[var(--retro-text)] font-bold text-center">
+                {Math.round(zoom * 100)}%
+              </span>
+            </div>
+            
+            <button
+              onClick={handleZoomIn}
+              className="retro-button p-3 hover:bg-[var(--retro-accent)] text-center"
+              title="Zoom In"
+            >
+              <ZoomIn className="w-5 h-5" />
+            </button>
+          </div>
           
-          <span className="text-sm text-gray-600 min-w-[60px] text-center">
-            {Math.round(zoom * 100)}%
-          </span>
-          
           <button
-            onClick={handleZoomIn}
-            className="p-2 text-gray-600 bg-gray-50 hover:bg-gray-100 rounded"
-            title="Zoom In"
+            onClick={() => onSetZoom(1)}
+            className="retro-button w-full flex items-center justify-center space-x-3 p-4 hover:bg-[var(--retro-accent)] text-center"
+            title="Reset Zoom to 100%"
           >
-            <ZoomIn className="w-4 h-4" />
+            <RotateCcw className="w-4 h-4" />
+            <span className="text-sm font-bold text-center">Reset Zoom</span>
           </button>
         </div>
-      </div>
+      </CollapsibleSection>
 
       {/* Storage Actions */}
-      <div>
-        <h3 className="text-sm font-medium text-gray-700 mb-3">Storage</h3>
-        <div className="space-y-2">
+      <CollapsibleSection title="Storage" defaultExpanded={false}>
+        <div className="space-y-4">
           <button
             onClick={onSave}
             disabled={!isWalletConnected}
             className={cn(
-              "w-full flex items-center justify-center space-x-2 p-2 rounded-lg transition-colors",
+              "retro-button w-full flex items-center justify-center space-x-3 p-4 transition-colors text-center",
               isWalletConnected
-                ? "text-green-600 bg-green-50 hover:bg-green-100"
-                : "text-gray-400 bg-gray-100 cursor-not-allowed"
+                ? "hover:bg-[var(--retro-accent)]"
+                : "opacity-50 cursor-not-allowed"
             )}
-            title={!isWalletConnected ? "Connect wallet to save designs" : "Save design to Walrus"}
+            title={!isWalletConnected ? "Connect wallet to save/load designs" : "Save/Load design to/from Walrus"}
           >
-            <Save className="w-4 h-4" />
-            <span className="text-sm">
-              {isWalletConnected ? "Save to Walrus" : "Connect Wallet to Save"}
+            <Save className="w-5 h-5" />
+            <span className="text-sm font-bold text-center">
+              {isWalletConnected ? "Save/Load" : "Connect Wallet to Save/Load"}
             </span>
           </button>
-          
-          <button
-            onClick={onLoad}
-            className="w-full flex items-center justify-center space-x-2 p-2 text-purple-600 bg-purple-50 hover:bg-purple-100 rounded-lg transition-colors"
-          >
-            <Upload className="w-4 h-4" />
-            <span className="text-sm">Load from Walrus</span>
-          </button>
         </div>
-      </div>
+      </CollapsibleSection>
 
       
 
       {/* Actions */}
-      <div>
-        <h3 className="text-sm font-medium text-gray-700 mb-3">Actions</h3>
-        <div className="space-y-2">
+      <CollapsibleSection title="Actions" defaultExpanded={false}>
+        <div className="space-y-4">
           <button
             onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); onDeleteSelected(); }}
             onClick={(e) => { e.preventDefault(); e.stopPropagation(); onDeleteSelected(); }}
-            className="w-full flex items-center justify-center space-x-2 p-2 text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors"
+            className="retro-button w-full flex items-center justify-center space-x-3 p-4 transition-colors hover:bg-red-500 hover:text-white text-center"
           >
-            <Trash2 className="w-4 h-4" />
-            <span className="text-sm">Delete Selected</span>
+            <Trash2 className="w-5 h-5" />
+            <span className="text-sm font-bold text-center">Delete Selected</span>
           </button>
           
           <button
             onClick={onClearCanvas}
-            className="w-full flex items-center justify-center space-x-2 p-2 text-orange-600 bg-orange-50 hover:bg-orange-100 rounded-lg transition-colors"
+            className="retro-button w-full flex items-center justify-center space-x-3 p-4 transition-colors hover:bg-red-500 hover:text-white text-center"
           >
-            <RotateCcw className="w-4 h-4" />
-            <span className="text-sm">Clear Canvas</span>
+            <X className="w-5 h-5" />
+            <span className="text-sm font-bold text-center">Clear Canvas</span>
           </button>
           
           <button
             onClick={handleExport}
-            className="w-full flex items-center justify-center space-x-2 p-2 text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"
+            className="retro-button w-full flex items-center justify-center space-x-3 p-4 transition-colors hover:bg-[var(--retro-accent)] text-center"
           >
-            <Download className="w-4 h-4" />
-            <span className="text-sm">Export PNG</span>
+            <Download className="w-5 h-5" />
+            <span className="text-sm font-bold text-center">Export PNG</span>
           </button>
         </div>
-      </div>
+      </CollapsibleSection>
 
       {/* Image Modal */}
       {/* Managed by parent */}
