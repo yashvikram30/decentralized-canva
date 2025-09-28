@@ -154,9 +154,6 @@ export default function CanvasEditor({ className }: CanvasEditorProps) {
             <Toolbar 
               canvas={canvas}
               drawingMode={drawingMode}
-              onAddText={addText}
-              onAddRectangle={addRectangle}
-              onAddCircle={addCircle}
               onDeleteSelected={deleteSelected}
               onClearCanvas={clearCanvas}
               onSetBackgroundColor={setBackgroundColor}
@@ -165,7 +162,6 @@ export default function CanvasEditor({ className }: CanvasEditorProps) {
               onSetTool={setSelectedTool}
               onAIImage={() => setActiveAIPanel('image')}
               onSave={() => walrusActionRef.current?.('save')}
-              onLoad={() => walrusActionRef.current?.('load')}
               zoom={zoom}
               isWalletConnected={isConnected}
             />

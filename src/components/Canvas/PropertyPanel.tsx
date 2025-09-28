@@ -2,12 +2,12 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { fabric } from '@/lib/fabric';
-import { Download, Upload, Save, Settings, Image, Link, Wallet, Copy, ExternalLink, RefreshCw, CheckCircle } from 'lucide-react';
+import { Download, Upload, Save, Settings, Link, Wallet, Copy, ExternalLink, RefreshCw, CheckCircle } from 'lucide-react';
 import { cn } from '@/utils/helpers';
-import { updateTextFontFamily, AVAILABLE_FONTS, initializeFonts } from '@/utils/fontLoader';
+import { AVAILABLE_FONTS } from '@/utils/fontLoader';
 import AIImageModal from '../AI/AIImageModal';
 import WalrusPopup from '../Storage/WalrusPopup';
-import { useCurrentAccount, useCurrentWallet, useSuiClient } from '@mysten/dapp-kit';
+import { useCurrentAccount, useCurrentWallet } from '@mysten/dapp-kit';
 
 interface PropertyPanelProps {
   canvas: fabric.Canvas | null;
@@ -38,7 +38,6 @@ export default function PropertyPanel({
 }: PropertyPanelProps) {
   const currentAccount = useCurrentAccount();
   const currentWallet = useCurrentWallet();
-  const suiClient = useSuiClient();
   
   const isConnected = !!currentAccount;
   const address = currentAccount?.address || null;
@@ -106,9 +105,6 @@ export default function PropertyPanel({
     }
   };
 
-  const formatAddress = (addr: string) => {
-    return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
-  };
 
   const formatBalance = (bal: string) => {
     const balance = parseFloat(bal) / 1e9; // Convert from MIST to SUI
@@ -387,49 +383,6 @@ export default function PropertyPanel({
     }
   };
 
-  // Debug function to check canvas state
-  const debugCanvasState = () => {
-    if (!canvas) return;
-    console.log('=== CANVAS DEBUG INFO ===');
-    console.log('Total objects:', canvas.getObjects().length);
-    console.log('Selected objects:', selectedObjects.length);
-    console.log('Canvas size:', canvas.getWidth(), 'x', canvas.getHeight());
-    console.log('Canvas zoom:', canvas.getZoom());
-    console.log('All objects:', canvas.getObjects().map(obj => ({
-      type: obj.type,
-      id: (obj as any).id || 'no-id',
-      visible: obj.visible,
-      left: obj.left,
-      top: obj.top,
-      width: obj.width,
-      height: obj.height
-    })));
-    console.log('========================');
-  };
-
-  // Function to ensure all objects are visible
-  const ensureObjectsVisible = () => {
-    if (!canvas) return;
-
-    canvas.getObjects().forEach(obj => {
-      if ((obj as any).__deleted) {
-        return;
-      }
-
-      if (!obj.visible) {
-        obj.set('visible', true);
-      }
-
-      if (obj.opacity === 0) {
-        obj.set('opacity', 1);
-      }
-
-      obj.setCoords();
-      obj.dirty = true;
-    });
-
-    canvas.renderAll();
-  };
 
   return (
     <div className="h-full flex flex-col w-full min-w-0 max-w-full">
@@ -588,8 +541,18 @@ export default function PropertyPanel({
         </div>
         )}
 
-        {/* Show AI Image panel when active */}
-        {activeAIPanel === 'image' ? (
+        {/* Prioritize Walrus popup when open */}
+        {showWalrusPopup ? (
+          <div className="h-full w-full min-w-0 max-w-full">
+            <WalrusPopup
+              isOpen={showWalrusPopup}
+              onClose={() => setShowWalrusPopup(false)}
+              canvas={canvas}
+              onLoad={onLoad}
+              mode={walrusPopupMode}
+            />
+          </div>
+        ) : activeAIPanel === 'image' ? (
           <div className="h-full w-full">
             <div className="p-4 border-b border-gray-200 flex items-center justify-between flex-shrink-0">
               <h2 className="text-lg font-semibold text-gray-900">AI Image Generation</h2>
@@ -677,340 +640,323 @@ export default function PropertyPanel({
         ) : (
           /* Default content for other tools */
           <>
-            {/* Show Walrus popup as main content when open */}
-            {showWalrusPopup ? (
-              <div className="h-full w-full min-w-0 max-w-full">
-                <WalrusPopup
-                  isOpen={showWalrusPopup}
-                  onClose={() => setShowWalrusPopup(false)}
-                  canvas={canvas}
-                  onLoad={onLoad}
-                  mode={walrusPopupMode}
-                />
-              </div>
-            ) : (
-              <>
-                {/* Export/Import */}
-                <div className="p-4 border-b border-gray-200">
-                  <h3 className="text-sm font-medium text-gray-700 mb-3">Export/Import</h3>
-                  <div className="space-y-2">
-                    <div className="grid grid-cols-3 gap-2">
-                      <button
-                        onClick={() => handleExport('png')}
-                        className="flex items-center justify-center space-x-1 p-2 text-sm bg-blue-50 text-blue-600 rounded hover:bg-blue-100"
-                      >
-                        <Download className="w-4 h-4" />
-                        <span>PNG</span>
-                      </button>
-                      <button
-                        onClick={() => handleExport('svg')}
-                        className="flex items-center justify-center space-x-1 p-2 text-sm bg-green-50 text-green-600 rounded hover:bg-green-100"
-                      >
-                        <Download className="w-4 h-4" />
-                        <span>SVG</span>
-                      </button>
-                      <button
-                        onClick={() => handleExport('json')}
-                        className="flex items-center justify-center space-x-1 p-2 text-sm bg-purple-50 text-purple-600 rounded hover:bg-purple-100"
-                      >
-                        <Download className="w-4 h-4" />
-                        <span>JSON</span>
-                      </button>
-                    </div>
-                    
-                    <label className="block">
-                      <input
-                        type="file"
-                        accept=".json"
-                        onChange={handleImport}
-                        className="hidden"
-                      />
-                      <div className="flex items-center justify-center space-x-1 p-2 text-sm bg-gray-50 text-gray-600 rounded hover:bg-gray-100 cursor-pointer">
-                        <Upload className="w-4 h-4" />
-                        <span>Import JSON</span>
-                      </div>
-                    </label>
-                  </div>
+            {/* Export/Import */}
+            <div className="p-4 border-b border-gray-200">
+              <h3 className="text-sm font-medium text-gray-700 mb-3">Export/Import</h3>
+              <div className="space-y-2">
+                <div className="grid grid-cols-3 gap-2">
+                  <button
+                    onClick={() => handleExport('png')}
+                    className="flex items-center justify-center space-x-1 p-2 text-sm bg-blue-50 text-blue-600 rounded hover:bg-blue-100"
+                  >
+                    <Download className="w-4 h-4" />
+                    <span>PNG</span>
+                  </button>
+                  <button
+                    onClick={() => handleExport('svg')}
+                    className="flex items-center justify-center space-x-1 p-2 text-sm bg-green-50 text-green-600 rounded hover:bg-green-100"
+                  >
+                    <Download className="w-4 h-4" />
+                    <span>SVG</span>
+                  </button>
+                  <button
+                    onClick={() => handleExport('json')}
+                    className="flex items-center justify-center space-x-1 p-2 text-sm bg-purple-50 text-purple-600 rounded hover:bg-purple-100"
+                  >
+                    <Download className="w-4 h-4" />
+                    <span>JSON</span>
+                  </button>
                 </div>
+                
+                <label className="block">
+                  <input
+                    type="file"
+                    accept=".json"
+                    onChange={handleImport}
+                    className="hidden"
+                  />
+                  <div className="flex items-center justify-center space-x-1 p-2 text-sm bg-gray-50 text-gray-600 rounded hover:bg-gray-100 cursor-pointer">
+                    <Upload className="w-4 h-4" />
+                    <span>Import JSON</span>
+                  </div>
+                </label>
+              </div>
+            </div>
 
-                {/* Object Properties */}
-                {selectedObject ? (
+            {/* Object Properties */}
+            {selectedObject ? (
               <div className="p-4 space-y-4">
                 <h3 className="text-sm font-medium text-gray-700">Object Properties</h3>
             
-            {/* Text Properties - Only show for text objects */}
-            {(selectedObject.type === 'text' || selectedObject.type === 'textbox') && (
-              <div className="space-y-3 p-3 bg-blue-50 rounded-lg">
-                <h4 className="text-xs font-medium text-blue-800">Text Properties</h4>
+                {/* Text Properties - Only show for text objects */}
+                {(selectedObject.type === 'text' || selectedObject.type === 'textbox') && (
+                  <div className="space-y-3 p-3 bg-blue-50 rounded-lg">
+                    <h4 className="text-xs font-medium text-blue-800">Text Properties</h4>
+                    
+                    {/* Font Family */}
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">Font Family</label>
+                      <select
+                        value={properties.fontFamily}
+                        onChange={(e) => {
+                          console.log('Font family change requested:', e.target.value);
+                          updateProperty('fontFamily', e.target.value);
+                        }}
+                        className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      >
+                        {AVAILABLE_FONTS.map((font) => (
+                          <option key={font.name} value={font.name}>
+                            {font.displayName}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Font Size */}
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">Font Size</label>
+                      <input
+                        type="number"
+                        min="8"
+                        max="200"
+                        value={properties.fontSize}
+                        onChange={(e) => {
+                          const value = Math.max(8, Math.min(200, Number(e.target.value) || 8));
+                          updateProperty('fontSize', value);
+                        }}
+                        onBlur={(e) => {
+                          const value = Math.max(8, Math.min(200, Number(e.target.value) || 8));
+                          setProperties(prev => ({ ...prev, fontSize: value }));
+                        }}
+                        className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+
+                    {/* Font Weight & Style */}
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">Weight</label>
+                        <select
+                          value={properties.fontWeight}
+                          onChange={(e) => updateProperty('fontWeight', e.target.value)}
+                          className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        >
+                          <option value="normal">Normal</option>
+                          <option value="bold">Bold</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">Style</label>
+                        <select
+                          value={properties.fontStyle}
+                          onChange={(e) => updateProperty('fontStyle', e.target.value)}
+                          className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        >
+                          <option value="normal">Normal</option>
+                          <option value="italic">Italic</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    {/* Text Alignment */}
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">Alignment</label>
+                      <div className="flex space-x-1">
+                        {['left', 'center', 'right'].map((align) => (
+                          <button
+                            key={align}
+                            onClick={() => updateProperty('textAlign', align)}
+                            className={`flex-1 px-2 py-1 text-xs rounded ${
+                              properties.textAlign === align
+                                ? 'bg-blue-600 text-white'
+                                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                            }`}
+                          >
+                            {align.charAt(0).toUpperCase() + align.slice(1)}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Textbox Size - Only for textbox objects */}
+                    {selectedObject.type === 'textbox' && (
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="block text-xs font-medium text-gray-600 mb-1">Width</label>
+                          <input
+                            type="number"
+                            min="50"
+                            max="1000"
+                            value={Math.round(properties.width)}
+                            onChange={(e) => {
+                              const value = Math.max(50, Math.min(1000, Number(e.target.value) || 50));
+                              updateProperty('width', value);
+                            }}
+                            onBlur={(e) => {
+                              const value = Math.max(50, Math.min(1000, Number(e.target.value) || 50));
+                              setProperties(prev => ({ ...prev, width: value }));
+                            }}
+                            className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-600 mb-1">Height</label>
+                          <input
+                            type="number"
+                            min="20"
+                            max="500"
+                            value={Math.round(properties.height)}
+                            onChange={(e) => {
+                              const value = Math.max(20, Math.min(500, Number(e.target.value) || 20));
+                              updateProperty('height', value);
+                            }}
+                            onBlur={(e) => {
+                              const value = Math.max(20, Math.min(500, Number(e.target.value) || 20));
+                              setProperties(prev => ({ ...prev, height: value }));
+                            }}
+                            className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
                 
-                {/* Font Family */}
+                {/* Fill Color */}
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">Font Family</label>
-                  <select
-                    value={properties.fontFamily}
-                    onChange={(e) => {
-                      console.log('Font family change requested:', e.target.value);
-                      updateProperty('fontFamily', e.target.value);
-                    }}
-                    className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    {AVAILABLE_FONTS.map((font) => (
-                      <option key={font.name} value={font.name}>
-                        {font.displayName}
-                      </option>
-                    ))}
-                  </select>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Fill Color</label>
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="color"
+                      value={properties.fill}
+                      onChange={(e) => updateProperty('fill', e.target.value)}
+                      className="w-8 h-8 border border-gray-300 rounded cursor-pointer"
+                    />
+                    <input
+                      type="text"
+                      value={properties.fill}
+                      onChange={(e) => updateProperty('fill', e.target.value)}
+                      className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
                 </div>
 
-                {/* Font Size */}
+                {/* Stroke Color */}
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">Font Size</label>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Stroke Color</label>
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="color"
+                      value={properties.stroke}
+                      onChange={(e) => updateProperty('stroke', e.target.value)}
+                      className="w-8 h-8 border border-gray-300 rounded cursor-pointer"
+                    />
+                    <input
+                      type="text"
+                      value={properties.stroke}
+                      onChange={(e) => updateProperty('stroke', e.target.value)}
+                      className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                </div>
+
+                {/* Stroke Width */}
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Stroke Width</label>
                   <input
                     type="number"
-                    min="8"
-                    max="200"
-                    value={properties.fontSize}
-                    onChange={(e) => {
-                      const value = Math.max(8, Math.min(200, Number(e.target.value) || 8));
-                      updateProperty('fontSize', value);
-                    }}
-                    onBlur={(e) => {
-                      const value = Math.max(8, Math.min(200, Number(e.target.value) || 8));
-                      setProperties(prev => ({ ...prev, fontSize: value }));
-                    }}
+                    min="0"
+                    max="20"
+                    value={properties.strokeWidth}
+                    onChange={(e) => updateProperty('strokeWidth', Number(e.target.value))}
                     className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
 
-                {/* Font Weight & Style */}
+                {/* Opacity */}
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Opacity</label>
+                  <input
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.1"
+                    value={properties.opacity}
+                    onChange={(e) => updateProperty('opacity', Number(e.target.value))}
+                    className="w-full"
+                  />
+                  <div className="text-xs text-gray-500 text-center">{Math.round(properties.opacity * 100)}%</div>
+                </div>
+
+                {/* Position */}
                 <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">Weight</label>
-                    <select
-                      value={properties.fontWeight}
-                      onChange={(e) => updateProperty('fontWeight', e.target.value)}
+                    <label className="block text-xs font-medium text-gray-600 mb-1">X</label>
+                    <input
+                      type="number"
+                      value={Math.round(properties.left)}
+                      onChange={(e) => updateProperty('left', Number(e.target.value))}
                       className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="normal">Normal</option>
-                      <option value="bold">Bold</option>
-                    </select>
+                    />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">Style</label>
-                    <select
-                      value={properties.fontStyle}
-                      onChange={(e) => updateProperty('fontStyle', e.target.value)}
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Y</label>
+                    <input
+                      type="number"
+                      value={Math.round(properties.top)}
+                      onChange={(e) => updateProperty('top', Number(e.target.value))}
                       className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="normal">Normal</option>
-                      <option value="italic">Italic</option>
-                    </select>
+                    />
                   </div>
                 </div>
 
-                {/* Text Alignment */}
+                {/* Scale */}
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Scale X</label>
+                    <input
+                      type="number"
+                      min="0.1"
+                      max="5"
+                      step="0.1"
+                      value={properties.scaleX}
+                      onChange={(e) => updateProperty('scaleX', Number(e.target.value))}
+                      className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Scale Y</label>
+                    <input
+                      type="number"
+                      min="0.1"
+                      max="5"
+                      step="0.1"
+                      value={properties.scaleY}
+                      onChange={(e) => updateProperty('scaleY', Number(e.target.value))}
+                      className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                </div>
+
+                {/* Rotation */}
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">Alignment</label>
-                  <div className="flex space-x-1">
-                    {['left', 'center', 'right'].map((align) => (
-                      <button
-                        key={align}
-                        onClick={() => updateProperty('textAlign', align)}
-                        className={`flex-1 px-2 py-1 text-xs rounded ${
-                          properties.textAlign === align
-                            ? 'bg-blue-600 text-white'
-                            : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                        }`}
-                      >
-                        {align.charAt(0).toUpperCase() + align.slice(1)}
-                      </button>
-                    ))}
-                  </div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Rotation</label>
+                  <input
+                    type="range"
+                    min="-180"
+                    max="180"
+                    value={properties.angle}
+                    onChange={(e) => updateProperty('angle', Number(e.target.value))}
+                    className="w-full"
+                  />
+                  <div className="text-xs text-gray-500 text-center">{Math.round(properties.angle)}°</div>
                 </div>
-
-                {/* Textbox Size - Only for textbox objects */}
-                {selectedObject.type === 'textbox' && (
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <label className="block text-xs font-medium text-gray-600 mb-1">Width</label>
-                      <input
-                        type="number"
-                        min="50"
-                        max="1000"
-                        value={Math.round(properties.width)}
-                        onChange={(e) => {
-                          const value = Math.max(50, Math.min(1000, Number(e.target.value) || 50));
-                          updateProperty('width', value);
-                        }}
-                        onBlur={(e) => {
-                          const value = Math.max(50, Math.min(1000, Number(e.target.value) || 50));
-                          setProperties(prev => ({ ...prev, width: value }));
-                        }}
-                        className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-gray-600 mb-1">Height</label>
-                      <input
-                        type="number"
-                        min="20"
-                        max="500"
-                        value={Math.round(properties.height)}
-                        onChange={(e) => {
-                          const value = Math.max(20, Math.min(500, Number(e.target.value) || 20));
-                          updateProperty('height', value);
-                        }}
-                        onBlur={(e) => {
-                          const value = Math.max(20, Math.min(500, Number(e.target.value) || 20));
-                          setProperties(prev => ({ ...prev, height: value }));
-                        }}
-                        className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
-                  </div>
-                )}
               </div>
-            )}
-            
-            {/* Fill Color */}
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Fill Color</label>
-              <div className="flex items-center space-x-2">
-                <input
-                  type="color"
-                  value={properties.fill}
-                  onChange={(e) => updateProperty('fill', e.target.value)}
-                  className="w-8 h-8 border border-gray-300 rounded cursor-pointer"
-                />
-                <input
-                  type="text"
-                  value={properties.fill}
-                  onChange={(e) => updateProperty('fill', e.target.value)}
-                  className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
+            ) : (
+              <div className="p-4 text-center text-gray-500">
+                <Settings className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                <p className="text-sm">Select an object to edit properties</p>
               </div>
-            </div>
-
-            {/* Stroke Color */}
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Stroke Color</label>
-              <div className="flex items-center space-x-2">
-                <input
-                  type="color"
-                  value={properties.stroke}
-                  onChange={(e) => updateProperty('stroke', e.target.value)}
-                  className="w-8 h-8 border border-gray-300 rounded cursor-pointer"
-                />
-                <input
-                  type="text"
-                  value={properties.stroke}
-                  onChange={(e) => updateProperty('stroke', e.target.value)}
-                  className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-            </div>
-
-            {/* Stroke Width */}
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Stroke Width</label>
-              <input
-                type="number"
-                min="0"
-                max="20"
-                value={properties.strokeWidth}
-                onChange={(e) => updateProperty('strokeWidth', Number(e.target.value))}
-                className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-
-            {/* Opacity */}
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Opacity</label>
-              <input
-                type="range"
-                min="0"
-                max="1"
-                step="0.1"
-                value={properties.opacity}
-                onChange={(e) => updateProperty('opacity', Number(e.target.value))}
-                className="w-full"
-              />
-              <div className="text-xs text-gray-500 text-center">{Math.round(properties.opacity * 100)}%</div>
-            </div>
-
-            {/* Position */}
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">X</label>
-                <input
-                  type="number"
-                  value={Math.round(properties.left)}
-                  onChange={(e) => updateProperty('left', Number(e.target.value))}
-                  className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Y</label>
-                <input
-                  type="number"
-                  value={Math.round(properties.top)}
-                  onChange={(e) => updateProperty('top', Number(e.target.value))}
-                  className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-            </div>
-
-            {/* Scale */}
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Scale X</label>
-                <input
-                  type="number"
-                  min="0.1"
-                  max="5"
-                  step="0.1"
-                  value={properties.scaleX}
-                  onChange={(e) => updateProperty('scaleX', Number(e.target.value))}
-                  className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Scale Y</label>
-                <input
-                  type="number"
-                  min="0.1"
-                  max="5"
-                  step="0.1"
-                  value={properties.scaleY}
-                  onChange={(e) => updateProperty('scaleY', Number(e.target.value))}
-                  className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-            </div>
-
-            {/* Rotation */}
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Rotation</label>
-              <input
-                type="range"
-                min="-180"
-                max="180"
-                value={properties.angle}
-                onChange={(e) => updateProperty('angle', Number(e.target.value))}
-                className="w-full"
-              />
-              <div className="text-xs text-gray-500 text-center">{Math.round(properties.angle)}°</div>
-            </div>
-          </div>
-        ) : (
-          <div className="p-4 text-center text-gray-500">
-            <Settings className="w-8 h-8 mx-auto mb-2 opacity-50" />
-            <p className="text-sm">Select an object to edit properties</p>
-          </div>
-        )}
-
-                {/* Canvas Info removed per request */}
-              </>
             )}
           </>
         )}

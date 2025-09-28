@@ -5,6 +5,7 @@ import { fabric } from '@/lib/fabric';
 import { Wand2, Loader2, Plus, RefreshCw, X, Download } from 'lucide-react';
 import { useAI } from '@/hooks/useAI';
 import { cn } from '@/utils/helpers';
+import Image from 'next/image';
 
 interface AIImageModalProps {
   isOpen: boolean;
@@ -304,9 +305,11 @@ export default function AIImageModal({ isOpen, onClose, canvas, embedded = false
               </div>
               
               <div className="relative">
-                <img
+                <Image
                   src={generatedImage}
                   alt="Generated"
+                  width={400}
+                  height={400}
                   className="w-full max-w-sm mx-auto rounded-lg shadow-lg"
                   style={{ animation: 'fadeIn 0.5s ease-in' }}
                 />
@@ -499,9 +502,11 @@ export default function AIImageModal({ isOpen, onClose, canvas, embedded = false
               </div>
               
               <div className="relative">
-                <img
+                <Image
                   src={generatedImage}
                   alt="Generated"
+                  width={500}
+                  height={500}
                   className="w-full max-w-md mx-auto rounded-lg shadow-lg"
                   style={{ animation: 'fadeIn 0.5s ease-in' }}
                 />

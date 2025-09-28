@@ -8,10 +8,9 @@ interface ImageModalProps {
   isOpen: boolean;
   onClose: () => void;
   onAddImage: (url: string) => void;
-  containerRef?: React.RefObject<HTMLDivElement | null>;
 }
 
-export default function ImageModal({ isOpen, onClose, onAddImage, containerRef }: ImageModalProps) {
+export default function ImageModal({ isOpen, onClose, onAddImage }: ImageModalProps) {
   const [imageUrl, setImageUrl] = useState('');
   const [isUploading, setIsUploading] = useState(false);
 

@@ -1,12 +1,14 @@
 import { Bubble } from 'pixel-retroui';
 
-function App() {
+export function RetroBubble() {
+  return (
     <Bubble
-    direction="left"
-    bg="#ddceb4"
-    textColor="#30210b"
-    borderColor="#30210b"
-  >
-    Hello, I'm a speech bubble!
-  </Bubble>
+      direction="left"
+      bg="#ddceb4"
+      textColor="#30210b"
+      borderColor="#30210b"
+    >
+      Hello, I&apos;m a speech bubble!
+    </Bubble>
+  );
 }

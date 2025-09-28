@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { Check, X, AlertCircle, Info, Loader2 } from 'lucide-react';
 import { cn } from '@/utils/helpers';
 
@@ -66,6 +66,13 @@ export default function Toast({ id, type, title, message, duration = 5000, onClo
     return () => clearTimeout(timer);
   }, []);
 
+  const handleClose = useCallback(() => {
+    setIsLeaving(true);
+    setTimeout(() => {
+      onClose(id);
+    }, 300);
+  }, [onClose, id]);
+
   useEffect(() => {
     if (type === 'loading') return; // Don't auto-dismiss loading toasts
 
@@ -74,14 +81,7 @@ export default function Toast({ id, type, title, message, duration = 5000, onClo
     }, duration);
 
     return () => clearTimeout(timer);
-  }, [duration, type]);
-
-  const handleClose = () => {
-    setIsLeaving(true);
-    setTimeout(() => {
-      onClose(id);
-    }, 300);
-  };
+  }, [duration, type, handleClose]);
 
   return (
     <div

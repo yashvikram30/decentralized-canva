@@ -1,9 +1,10 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Image, Loader2, Download, Copy } from 'lucide-react';
+import { Image as ImageIcon, Loader2, Download, Copy } from 'lucide-react';
 import { useAI } from '@/hooks/useAI';
 import { cn } from '@/utils/helpers';
+import Image from 'next/image';
 
 interface ImageGeneratorProps {
   onImageGenerated?: (imageUrl: string) => void;
@@ -92,7 +93,7 @@ export default function ImageGenerator({ onImageGenerated, className }: ImageGen
   return (
     <div className={cn("space-y-4", className)}>
       <div className="flex items-center space-x-2">
-        <Image className="w-5 h-5 text-purple-600" />
+        <ImageIcon className="w-5 h-5 text-purple-600" />
         <h3 className="text-lg font-semibold text-gray-900">Image Generator</h3>
       </div>
 
@@ -234,7 +235,7 @@ export default function ImageGenerator({ onImageGenerated, className }: ImageGen
         {isGeneratingImage ? (
           <Loader2 className="w-4 h-4 animate-spin" />
         ) : (
-          <Image className="w-4 h-4" />
+          <ImageIcon className="w-4 h-4" />
         )}
         <span>
           {isGeneratingImage ? 'Generating...' : 'Generate Image'}
@@ -266,9 +267,11 @@ export default function ImageGenerator({ onImageGenerated, className }: ImageGen
             </div>
           </div>
           <div className="border border-gray-200 rounded-lg overflow-hidden">
-            <img
+            <Image
               src={generatedImage}
               alt="Generated"
+              width={400}
+              height={256}
               className="w-full h-auto max-h-64 object-contain"
             />
           </div>

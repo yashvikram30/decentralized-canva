@@ -1,13 +1,13 @@
 import { ProgressBar } from 'pixel-retroui';
 
-function App() {
+export function RetroProgressBar() {
   return (
     <ProgressBar
-  size="md"
-  color="#ddceb4"
-  borderColor="#30210b"
-  className="w-full"
-  progress={50}
-/>
+      size="md"
+      color="#ddceb4"
+      borderColor="#30210b"
+      className="w-full"
+      progress={50}
+    />
   );
 }

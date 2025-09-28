@@ -43,6 +43,17 @@ export function useCanvas(containerRef: React.RefObject<HTMLDivElement | null>) 
     stateRef.current = state;
   }, [state]);
 
+  const resetDrawingState = useCallback(() => {
+    setState(prev => ({
+      ...prev,
+      isDrawing: false,
+      startPoint: null,
+      currentShape: null,
+      isPencilDrawing: false,
+      pencilPath: null
+    }));
+  }, []);
+
   const initializeCanvas = useCallback(() => {
     if (!containerRef.current || !canvasRef.current) return;
 
@@ -476,7 +487,7 @@ export function useCanvas(containerRef: React.RefObject<HTMLDivElement | null>) 
         error: error instanceof Error ? error.message : 'Canvas initialization failed'
       }));
     }
-  }, [containerRef]);
+  }, [containerRef, resetDrawingState]);
 
   const addText = useCallback((text: string, options?: any) => {
     if (!state.canvas) return;
@@ -760,16 +771,6 @@ export function useCanvas(containerRef: React.RefObject<HTMLDivElement | null>) 
     wrapper.style.margin = '0 auto';
   }, [state.canvas]);
 
-  const resetDrawingState = useCallback(() => {
-    setState(prev => ({
-      ...prev,
-      isDrawing: false,
-      startPoint: null,
-      currentShape: null,
-      isPencilDrawing: false,
-      pencilPath: null
-    }));
-  }, []);
 
   const setDrawingMode = useCallback((mode: DrawingMode) => {
     console.log('Setting drawing mode to:', mode);

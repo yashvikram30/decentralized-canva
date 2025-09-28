@@ -1,13 +1,12 @@
 'use client';
 
-import React, { useState } from 'react';
+import React from 'react';
 import { 
   Type, 
   Square, 
   Circle, 
   Image, 
   Trash2, 
-  Palette, 
   ZoomIn, 
   ZoomOut, 
   RotateCcw,
@@ -16,7 +15,6 @@ import {
   X,
   Sparkles,
   Wand2,
-  Upload,
   Save,
   Pencil
 } from 'lucide-react';
@@ -29,9 +27,6 @@ import { DrawingMode } from '@/hooks/useCanvas';
 interface ToolbarProps {
   canvas: fabric.Canvas | null;
   drawingMode: DrawingMode;
-  onAddText: (text: string) => void;
-  onAddRectangle: () => void;
-  onAddCircle: () => void;
   onDeleteSelected: () => void;
   onClearCanvas: () => void;
   onSetBackgroundColor: (color: string) => void;
@@ -41,7 +36,6 @@ interface ToolbarProps {
   onAIText?: () => void;
   onAIImage?: () => void;
   onSave?: () => void;
-  onLoad?: () => void;
   zoom: number;
   isWalletConnected?: boolean;
 }
@@ -49,9 +43,6 @@ interface ToolbarProps {
 export default function Toolbar({
   canvas,
   drawingMode,
-  onAddText,
-  onAddRectangle,
-  onAddCircle,
   onDeleteSelected,
   onClearCanvas,
   onSetBackgroundColor,
@@ -61,11 +52,9 @@ export default function Toolbar({
   onAIText,
   onAIImage,
   onSave,
-  onLoad,
   zoom,
   isWalletConnected = false
 }: ToolbarProps) {
-  const [showColorPicker, setShowColorPicker] = useState(false);
 
   const handleAddText = () => {
     // Text is now handled by drawing mode, no need for prompt
@@ -197,7 +186,7 @@ export default function Toolbar({
             className="retro-button flex items-center justify-center p-4 transition-colors hover:bg-[var(--retro-accent)] text-center"
             title="Add Image"
           >
-            <Image className="w-5 h-5" />
+            <Image className="w-5 h-5" aria-label="Add Image" />
           </button>
         </div>
       </CollapsibleSection>
@@ -379,7 +368,11 @@ export default function Toolbar({
       <CollapsibleSection title="Storage" defaultExpanded={false}>
         <div className="space-y-4">
           <button
-            onClick={onSave}
+            onClick={() => {
+              onSetDrawingMode('select');
+              onSetTool('select');
+              onSave?.();
+            }}
             disabled={!isWalletConnected}
             className={cn(
               "retro-button w-full flex items-center justify-center space-x-3 p-4 transition-colors text-center",

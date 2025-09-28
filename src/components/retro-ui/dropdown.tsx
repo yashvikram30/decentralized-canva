@@ -6,7 +6,7 @@ import {
     DropdownMenuSeparator
   } from 'pixel-retroui';
   
-  function App() {
+  export function RetroDropdown() {
     return (
         <DropdownMenu
         bg="#fefcd0"
