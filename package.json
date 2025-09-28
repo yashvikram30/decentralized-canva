@@ -45,6 +45,7 @@
     "@tailwindcss/postcss": "^4",
     "@types/crypto-js": "^4.2.1",
     "@types/fabric": "^5.3.10",
+    "@types/minimatch": "^5.1.2",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
