@@ -1,6 +1,7 @@
 import { sealEncryption } from './sealEncryption';
 import { walrusClient } from './walrusClient';
 import { accessControl, AccessPolicy } from './accessControl';
+import { mongoDBService, DesignData } from './mongoDBService';
 
 export interface StoredDesign {
   id: string;
@@ -91,6 +92,20 @@ export class EncryptedStorageService {
       };
 
       this.designs.set(design.id, design);
+
+      // Also save unencrypted version to MongoDB for quick access
+      try {
+        const mongoDesignData: DesignData = {
+          name,
+          canvasData,
+          blobId: storageResult.blobId
+        };
+        await mongoDBService.saveUserDesign(owner, mongoDesignData);
+        console.log('💾 Design also saved to MongoDB for quick access');
+      } catch (mongoError) {
+        console.warn('Failed to save to MongoDB (fallback available):', mongoError);
+        // Continue with encrypted storage even if MongoDB fails
+      }
       
       console.log('💾 Design saved with encryption:', design.id);
       return design;
@@ -249,6 +264,26 @@ export class EncryptedStorageService {
     }
     
     return userDesigns.sort((a, b) => b.updatedAt - a.updatedAt);
+  }
+
+  // New method to get MongoDB designs for quick access
+  async getMongoDBDesigns(walletAddress: string) {
+    try {
+      return await mongoDBService.getUserDesigns(walletAddress);
+    } catch (error) {
+      console.error('Failed to fetch MongoDB designs:', error);
+      return [];
+    }
+  }
+
+  // New method to load design directly from MongoDB
+  async loadDesignFromMongoDB(designId: string) {
+    try {
+      return await mongoDBService.loadDesignToCanvas(designId);
+    } catch (error) {
+      console.error('Failed to load design from MongoDB:', error);
+      throw error;
+    }
   }
 
   private generateDesignId(): string {

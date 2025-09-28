@@ -7,6 +7,8 @@ import { cn } from '@/utils/helpers';
 import { AVAILABLE_FONTS } from '@/utils/fontLoader';
 import AIImageModal from '../AI/AIImageModal';
 import WalrusPopup from '../Storage/WalrusPopup';
+import { DesignsList } from './DesignsList';
+import { useMongoDBDesigns } from '../../hooks/useMongoDBDesigns';
 import { useCurrentAccount, useCurrentWallet } from '@mysten/dapp-kit';
 
 interface PropertyPanelProps {
@@ -19,6 +21,7 @@ interface PropertyPanelProps {
   onCloseAIPanel?: () => void;
   onLoad?: (designData: any) => void;
   onWalrusActionRef?: React.MutableRefObject<((action: 'save' | 'load') => void) | null>;
+  onRefreshDesigns?: () => void; // Callback to refresh designs list
   showWalletSection?: boolean;
   showWalrusSection?: boolean;
 }
@@ -33,6 +36,7 @@ export default function PropertyPanel({
   onCloseAIPanel,
   onLoad,
   onWalrusActionRef,
+  onRefreshDesigns,
   showWalletSection = false,
   showWalrusSection = false
 }: PropertyPanelProps) {
@@ -47,6 +51,16 @@ export default function PropertyPanel({
     (currentWallet.name as string).toLowerCase().includes('sui wallet') ? 'sui-wallet' :
     (currentWallet.name as string).toLowerCase().includes('suiet') ? 'suiet' : 'slush' : null;
   const balance = '0'; // We'll implement balance fetching if needed
+
+  // MongoDB designs hook
+  const { loadDesignToCanvas, deleteDesign, refreshDesigns } = useMongoDBDesigns();
+  
+  // Auto-refresh designs when wallet address changes
+  useEffect(() => {
+    if (address) {
+      refreshDesigns(address);
+    }
+  }, [address, refreshDesigns]);
   
   // Debug logging
   console.log('PropertyPanel - Wallet state:', { isConnected, address, balance, walletName, walletType });
@@ -57,6 +71,7 @@ export default function PropertyPanel({
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [showWalrusPopup, setShowWalrusPopup] = useState(false);
   const [walrusPopupMode, setWalrusPopupMode] = useState<'save' | 'load'>('save');
+  const [designsRefreshTrigger, setDesignsRefreshTrigger] = useState(0);
   const [properties, setProperties] = useState({
     fill: '#000000',
     stroke: '#000000',
@@ -94,6 +109,43 @@ export default function PropertyPanel({
       console.error('Failed to copy address:', error);
     }
   };
+
+  // MongoDB design handlers
+  const handleLoadMongoDBDesign = useCallback(async (designId: string) => {
+    if (!canvas) {
+      console.error('Canvas not available');
+      return;
+    }
+    
+    try {
+      await loadDesignToCanvas(designId, canvas);
+      console.log('✅ Design loaded from MongoDB successfully');
+    } catch (error) {
+      console.error('Failed to load design from MongoDB:', error);
+    }
+  }, [canvas, loadDesignToCanvas]);
+
+  const handleDeleteMongoDBDesign = useCallback(async (designId: string) => {
+    try {
+      await deleteDesign(designId);
+      console.log('✅ Design deleted from MongoDB successfully');
+    } catch (error) {
+      console.error('Failed to delete design from MongoDB:', error);
+    }
+  }, [deleteDesign]);
+
+  const handleRefreshDesigns = useCallback(() => {
+    console.log('🔄 Refreshing designs list...');
+    setDesignsRefreshTrigger(prev => {
+      const newValue = prev + 1;
+      console.log('🔄 Designs refresh trigger updated to:', newValue);
+      return newValue;
+    });
+    // Also call parent callback if provided
+    if (onRefreshDesigns) {
+      onRefreshDesigns();
+    }
+  }, [onRefreshDesigns]);
 
   const handleRefreshBalance = async () => {
     setIsRefreshing(true);
@@ -541,6 +593,27 @@ export default function PropertyPanel({
         </div>
         )}
 
+        {/* My Designs Section - MongoDB Quick Access */}
+        {isConnected && (
+        <div className="p-4 border-b-2 border-[var(--retro-border)] retro-panel">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-bold text-[var(--retro-text)] flex items-center space-x-2">
+              <Settings className="w-4 h-4 text-[var(--retro-accent)]" />
+              <span>My Designs</span>
+            </h3>
+          </div>
+          
+          <div className="h-64 overflow-hidden">
+            <DesignsList
+              walletAddress={address}
+              onLoadDesign={handleLoadMongoDBDesign}
+              onDeleteDesign={handleDeleteMongoDBDesign}
+              refreshTrigger={designsRefreshTrigger}
+            />
+          </div>
+        </div>
+        )}
+
         {/* Prioritize Walrus popup when open */}
         {showWalrusPopup ? (
           <div className="h-full w-full min-w-0 max-w-full">
@@ -549,6 +622,7 @@ export default function PropertyPanel({
               onClose={() => setShowWalrusPopup(false)}
               canvas={canvas}
               onLoad={onLoad}
+              onSave={handleRefreshDesigns}
               mode={walrusPopupMode}
             />
           </div>

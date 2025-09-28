@@ -27,8 +27,13 @@ export default function CanvasEditor({ className }: CanvasEditorProps) {
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [selectedTool, setSelectedTool] = useState<'select' | 'text' | 'rectangle' | 'circle' | 'image' | 'pencil'>('select');
   const [activeAIPanel, setActiveAIPanel] = useState<'image' | null>(null);
+  const [designsRefreshTrigger, setDesignsRefreshTrigger] = useState(0);
   
   const { toasts, success, removeToast } = useToast();
+  
+  const handleRefreshDesigns = () => {
+    setDesignsRefreshTrigger(prev => prev + 1);
+  };
   const currentAccount = useCurrentAccount();
   const isConnected = !!currentAccount;
   
@@ -209,6 +214,7 @@ export default function CanvasEditor({ className }: CanvasEditorProps) {
             onCloseAIPanel={() => setActiveAIPanel(null)}
             onLoad={loadCanvas}
             onWalrusActionRef={walrusActionRef}
+            onRefreshDesigns={handleRefreshDesigns}
           />
         </div>
       </div>
@@ -226,6 +232,7 @@ export default function CanvasEditor({ className }: CanvasEditorProps) {
         onClose={() => setShowSaveDialog(false)}
         canvas={canvas}
         onLoad={loadCanvas}
+        onSave={handleRefreshDesigns}
       />
 
 

@@ -2,7 +2,7 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   // External packages for server-side rendering
-  serverExternalPackages: ['@mysten/walrus', '@mysten/walrus-wasm'],
+  serverExternalPackages: ['@mysten/walrus', '@mysten/walrus-wasm', 'mongoose'],
   
   // Experimental features
   experimental: {
@@ -27,6 +27,9 @@ const nextConfig: NextConfig = {
         os: false,
         path: false,
         zlib: false,
+        child_process: false,
+        dns: false,
+        'timers/promises': false,
       };
     }
 

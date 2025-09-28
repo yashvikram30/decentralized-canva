@@ -13,9 +13,10 @@ interface SaveDialogProps {
   onClose: () => void;
   canvas: fabric.Canvas | null;
   onLoad?: (designData: any) => void;
+  onSave?: () => void; // Callback to refresh designs list after save
 }
 
-export default function SaveDialog({ isOpen, onClose, canvas, onLoad }: SaveDialogProps) {
+export default function SaveDialog({ isOpen, onClose, canvas, onLoad, onSave }: SaveDialogProps) {
   const [designName, setDesignName] = useState('');
   const [isEncrypted, setIsEncrypted] = useState(false);
   const [savedBlobId, setSavedBlobId] = useState('');
@@ -106,6 +107,35 @@ export default function SaveDialog({ isOpen, onClose, canvas, onLoad }: SaveDial
         address || undefined // userAddress for encryption
       );
       setSavedBlobId(result.blobId);
+      
+      // Also save to MongoDB for "My Designs" section
+      try {
+        const { mongoDBService } = await import('../../services/mongoDBService');
+        await mongoDBService.saveUserDesign(address || '', {
+          name: designName,
+          canvasData: designData,
+          blobId: result.blobId
+        });
+        console.log('✅ Design also saved to MongoDB for quick access');
+        
+        // Trigger refresh of designs list AFTER MongoDB save is complete
+        if (onSave) {
+          console.log('🔄 Triggering designs refresh from SaveDialog...');
+          // Small delay to ensure MongoDB save is fully processed
+          setTimeout(() => {
+            onSave();
+          }, 100);
+        }
+      } catch (mongoError) {
+        console.warn('Failed to save to MongoDB (Walrus save still successful):', mongoError);
+        // Still trigger refresh even if MongoDB save failed
+        if (onSave) {
+          console.log('🔄 Triggering designs refresh after MongoDB error...');
+          setTimeout(() => {
+            onSave();
+          }, 100);
+        }
+      }
       
       // Auto-close after showing success
       setTimeout(() => {

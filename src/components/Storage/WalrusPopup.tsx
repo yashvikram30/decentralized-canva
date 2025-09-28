@@ -12,10 +12,11 @@ interface WalrusPopupProps {
   onClose: () => void;
   canvas: fabric.Canvas | null;
   onLoad?: (designData: any) => void;
+  onSave?: () => void; // Callback to refresh designs list after save
   mode: 'save' | 'load';
 }
 
-export default function WalrusPopup({ isOpen, onClose, canvas, onLoad, mode }: WalrusPopupProps) {
+export default function WalrusPopup({ isOpen, onClose, canvas, onLoad, onSave, mode }: WalrusPopupProps) {
   const [designName, setDesignName] = useState('');
   const [isEncrypted, setIsEncrypted] = useState(false);
   const [loadBlobId, setLoadBlobId] = useState('');
@@ -114,9 +115,43 @@ export default function WalrusPopup({ isOpen, onClose, canvas, onLoad, mode }: W
       const result = await store(blobData, walletService as any, 1, {}, address || undefined);
       
       if (result.stored) {
+        // Also save to MongoDB for "My Designs" section
+        try {
+          const { mongoDBService } = await import('../../services/mongoDBService');
+          await mongoDBService.saveUserDesign(address || '', {
+            name: designName,
+            canvasData: canvasData,
+            blobId: result.blobId
+          });
+          console.log('✅ Design also saved to MongoDB for quick access');
+          
+          // Trigger refresh of designs list AFTER MongoDB save is complete
+          if (onSave) {
+            console.log('🔄 Triggering designs refresh from WalrusPopup...');
+            // Small delay to ensure MongoDB save is fully processed
+            setTimeout(() => {
+              onSave();
+            }, 100);
+          }
+        } catch (mongoError) {
+          console.warn('Failed to save to MongoDB (Walrus save still successful):', mongoError);
+          // Still trigger refresh even if MongoDB save failed
+          if (onSave) {
+            console.log('🔄 Triggering designs refresh after MongoDB error...');
+            setTimeout(() => {
+              onSave();
+            }, 100);
+          }
+        }
+        
         // Show success message with blob ID
         setError(`✅ Design saved successfully! Blob ID: ${result.blobId}`);
         setDesignName('');
+        
+        // Show success message for a few seconds
+        setTimeout(() => {
+          setError(null);
+        }, 3000);
       }
     } catch (err) {
       console.error('Save error:', err);
